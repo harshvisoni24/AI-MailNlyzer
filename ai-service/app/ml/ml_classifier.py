@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional
+PHISHING_THRESHOLD = 0.70
 
 from app.config.settings import settings
 
@@ -68,6 +69,6 @@ def score_with_ml(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
     return {
         "mlPhishingProbability": round(probability * 100, 2),
-        "mlLabel": "PHISHING" if probability >= 0.5 else "BENIGN",
+        "mlLabel": "PHISHING" if probability >= PHISHING_THRESHOLD else "BENIGN",
         "mlSource": "meajor_xgb_v1",
     }

@@ -97,6 +97,16 @@ def main():
     X_test = featurize(test_df, vectorizer, scaler)
     y_test = test_df["label"].astype(int).values
     y_pred = model.predict(X_test)
+    assert len(y_pred) == len(test_df)
+    out = test_df.copy()
+    out["pred"] = y_pred
+    out["prob"] = model.predict_proba(X_test)[:, 1]
+    out.to_parquet(os.path.join(args.splits_dir, "test_with_preds.parquet"))
+    val_df = pd.read_parquet(os.path.join(args.splits_dir, "val.parquet")).reset_index(drop=True)
+    Xv = featurize(val_df, vectorizer, scaler)
+    val_out = val_df.copy()
+    val_out["prob"] = model.predict_proba(Xv)[:, 1]
+    val_out.to_parquet(os.path.join(args.splits_dir, "val_with_preds.parquet"))
 
     m = metrics(y_test, y_pred)
     print("\n=== TEST SET RESULTS (label 1 = phishing) ===")
