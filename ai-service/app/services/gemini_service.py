@@ -9,6 +9,41 @@ import json
 from typing import Any, Dict, List, Optional
 
 from app.config.settings import settings
+import re
+from urllib.parse import urlsplit
+
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+_PHONE_RE = re.compile(r"\+?\d[\d\s().-]{7,}\d")
+
+
+def _mask_text(value) -> str:
+    text = _EMAIL_RE.sub("[EMAIL]", str(value or ""))
+    return _PHONE_RE.sub("[NUMBER]", text)[:200]
+
+
+def _safe_url(url) -> str:
+    try:
+        p = urlsplit(str(url))
+        return f"{p.scheme}://{p.hostname}{p.path}"[:200]  # drops ?query, #fragment, user:pass@
+    except Exception:
+        return "[URL]"
+
+
+def _mask_ip(ip) -> str:
+    parts = str(ip).split(".")
+    return ".".join(parts[:2] + ["x", "x"]) if len(parts) == 4 else "[IP]"
+
+
+def safe_evidence(rule_result, payload):
+    rr = dict(rule_result)
+    rr["relayIps"] = [_mask_ip(i) for i in rr.get("relayIps") or []]
+    return {
+        "ruleResult": rr,
+        "headerAnomalies": [_mask_text(a) for a in payload.get("headerAnomalies") or []],
+        "lookalikeDomain": payload.get("lookalikeDomain"),
+        "urls": [_safe_url(u) for u in (payload.get("urls") or [])[:20]],
+        "subject": _mask_text(payload.get("subject")),
+    }
 
 _gemini_model = None
 
@@ -47,7 +82,7 @@ DETERMINISTIC, ALREADY-COMPUTED evidence about a suspicious email. Do not invent
 any new technical facts (IPs, domains, headers) beyond what is provided.
 
 Evidence (JSON):
-{json.dumps({"ruleResult": rule_result, "headerAnomalies": payload.get("headerAnomalies"), "lookalikeDomain": payload.get("lookalikeDomain"), "urls": payload.get("urls"), "subject": payload.get("subject")}, default=str)}
+{json.dumps(safe_evidence(rule_result, payload), default=str)}
 
 Respond ONLY as compact JSON with this exact shape:
 {{
