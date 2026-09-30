@@ -83,7 +83,8 @@ def _get_model():
         genai.configure(api_key=settings.gemini_api_key)
         _gemini_model = genai.GenerativeModel(settings.gemini_model)
         return _gemini_model
-    except Exception:
+    except Exception as e:
+        print("Gemini error:", repr(e))
         return None
 
 
@@ -125,7 +126,8 @@ Respond ONLY as compact JSON with this exact shape:
             "attackStory": parsed.get("attackStory", template_attack_story(rule_result, payload)),
             "aiExplanationSource": "GEMINI",
         }
-    except Exception:
+    except Exception as e:
+        print("Gemini error:", repr(e))
         # Gemini unavailable / malformed response -> graceful fallback, never crash.
         return {
             "observedFacts": observed_facts,

@@ -1,7 +1,11 @@
 import axios from "axios";
 import { env } from "../config/env";
 
-const client = axios.create({ baseURL: env.aiServiceUrl, timeout: 20000 });
+const client = axios.create({
+  baseURL: env.aiServiceUrl,
+  timeout: 20000,
+  headers: { "x-api-key": env.aiServiceApiKey },
+});
 
 export interface AiAnalysisResult {
   classification: string;
@@ -33,7 +37,7 @@ export async function checkAiServiceHealth(): Promise<boolean> {
     const { data } = await client.get("/health", { timeout: 3000 });
     return data?.status === "ok";
   } catch (err) {
-    console.error("AI service health check failed:", err);
+    console.error("AI service health check failed:", err instanceof Error ? err.message : "unknown error");
     return false;
   }
 }
