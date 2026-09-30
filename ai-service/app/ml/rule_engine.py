@@ -25,7 +25,7 @@ EXECUTIVE_TITLES = ["ceo", "cfo", "coo", "president", "director", "chairman"]
 
 def _contains_any(text: str, phrases: List[str]) -> List[str]:
     lowered = text.lower()
-    return [p for p in phrases if p in lowered]
+    return [p for p in phrases if re.search(r"\b" + re.escape(p) + r"\b", lowered)]
 
 
 def analyze_content(text_body: str, html_body: str, subject: str) -> Dict[str, Any]:
@@ -107,7 +107,7 @@ def blend_ml_score(rule_result: Dict[str, Any], ml_result: Optional[Dict[str, An
 
 
 def classify(score: int, content_signals: Dict[str, Any], auth: Dict[str, Any], lookalike: Optional[Dict[str, Any]]) -> str:
-    if content_signals["becIndicators"] and content_signals["executiveImpersonationSignals"]:
+    if content_signals["becIndicators"] and content_signals["executiveImpersonationSignals"] and score >= 45:
         return "BEC"
     if content_signals["credentialHarvestingIndicators"] and score >= 50:
         return "CREDENTIAL_HARVESTING"
