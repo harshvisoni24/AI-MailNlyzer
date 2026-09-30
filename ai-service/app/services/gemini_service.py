@@ -44,6 +44,29 @@ def safe_evidence(rule_result, payload):
         "urls": [_safe_url(u) for u in (payload.get("urls") or [])[:20]],
         "subject": _mask_text(payload.get("subject")),
     }
+_URL_RE = re.compile(r"https?://[^\s\"'<>]+")
+_RAW_KEYS = {"textbody", "htmlbody", "body", "rawemail", "raw", "rawmessage", "emailbody"}
+
+
+def redact_text(value, limit: int = 1000) -> str:
+    text = _URL_RE.sub(lambda m: _safe_url(m.group(0)), str(value or ""))
+    text = _EMAIL_RE.sub("[EMAIL]", text)
+    return _PHONE_RE.sub("[NUMBER]", text)[:limit]
+
+
+def redact_any(value, depth: int = 0):
+    if depth > 6:
+        return "[TRUNCATED]"
+    if isinstance(value, dict):
+        return {
+            k: ("[REMOVED]" if str(k).lower() in _RAW_KEYS else redact_any(v, depth + 1))
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [redact_any(v, depth + 1) for v in value[:50]]
+    if isinstance(value, str):
+        return redact_text(value, 500)
+    return value
 
 _gemini_model = None
 
@@ -176,9 +199,9 @@ question using ONLY the investigation data provided below. If the data does not
 contain the answer, say so explicitly rather than inventing facts.
 
 Investigation data (JSON):
-{json.dumps(context, default=str)[:12000]}
+{json.dumps(redact_any(context), default=str)[:12000]}
 
-Analyst question: {question}
+Analyst question: {redact_text(question)}
 
 Respond with a concise, professional answer (max 6 sentences)."""
 
