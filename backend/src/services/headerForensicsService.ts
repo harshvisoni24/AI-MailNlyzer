@@ -33,18 +33,42 @@ export function analyzeAuthentication(authRawHeader: string | undefined) {
   };
 }
 
-const IPV4_REGEX = /\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/g;
+const IPV4_REGEX = /(?<![\d.])(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?![\d.])/g;
 // Require at least 4 hex groups (i.e. 3+ colons) to avoid false-matching
 // timestamps like "09:14:15" (3 groups / 2 colons) found in Received headers.
 const IPV6_REGEX = /\b([a-f0-9]{1,4}:){3,7}[a-f0-9]{1,4}\b/gi;
+function isPublicIPv4(ip: string): boolean {
+  const parts = ip.split(".");
+  if (parts.length !== 4) return false;
+
+  const nums: number[] = [];
+  for (const p of parts) {
+    // reject leading zeros (like "09"), empty parts and non-digits
+    if (!/^(0|[1-9]\d{0,2})$/.test(p)) return false;
+    const n = Number(p);
+    if (n > 255) return false;
+    nums.push(n);
+  }
+
+  const [a, b] = nums;
+  if (a === 0) return false;                           // 0.0.0.0/8
+  if (a === 10) return false;                          // private
+  if (a === 127) return false;                         // loopback
+  if (a === 169 && b === 254) return false;            // link-local
+  if (a === 172 && b >= 16 && b <= 31) return false;   // private
+  if (a === 192 && b === 168) return false;            // private
+  if (a === 100 && b >= 64 && b <= 127) return false;  // carrier-grade NAT
+  if (a >= 224) return false;                          // multicast and reserved
+  return true;
+}
 
 export function extractIpsFromReceivedChain(receivedHeaders: string[]): string[] {
   const found = new Set<string>();
   for (const header of receivedHeaders) {
     for (const match of header.matchAll(IPV4_REGEX)) {
-      // Filter out obviously-private/loopback ranges for the "external" trace,
-      // but keep them if that's all that's present (still useful forensically).
-      found.add(match[1]);
+      const ip = match[1];
+      if (!isPublicIPv4(ip)) continue;
+      found.add(ip);
     }
     for (const match of header.matchAll(IPV6_REGEX)) {
       found.add(match[0]);
