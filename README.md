@@ -92,7 +92,7 @@ Verdict rules, checked in this order:
 
 | Condition | Verdict |
 |---|---|
-| BEC phrases and executive title both present | `BEC` |
+| BEC phrases and executive title both present, and score >= 45 | `BEC` |
 | Credential-harvesting phrases and score >= 50 | `CREDENTIAL_HARVESTING` |
 | Lookalike domain and score >= 60 | `IMPERSONATION` |
 | Score >= 75 | `PHISHING` |
@@ -215,8 +215,9 @@ Moving from 0.50 to 0.70 roughly halves false alarms and costs about 2 points of
 
 - **The `en;en` subset is only reduced, not solved.** Its false-positive rate is 4.7% at threshold 0.70 (9.4% at 0.50), still above the 1.1% of normal English mail.
 - **The threshold does not change the live verdict.** `PHISHING_THRESHOLD` only affects `mlLabel`. The final verdict comes from the blended score and the rule engine.
-- **The end-to-end system has not been evaluated.** All accuracy figures above are for the ML classifier alone on the MeAJOR test split. The test data has no authentication or header data, so the rule engine and blended verdicts have not been measured.
-- **Rule engine matching is loose.** Phrases are matched as substrings, so short terms such as `coo` also match inside words like `cool`, and `director` matches `directory`. A single finance phrase plus a single executive title is enough for a `BEC` verdict. This may cause false alarms on normal business mail and is untested.
+- **The end-to-end system has only had a small check.** All accuracy figures above are for the ML classifier alone on the MeAJOR test split, which has no authentication or header data. The full pipeline (rules + ML + blend) was checked with `test_live.py` on 8 hand-written emails (7 correct). That is too small to give an accuracy figure, and a larger labelled test set is still needed.
+- **Some scams are missed.** A scam email with no trigger phrases (for example a "cash prize" message) scored 0 on the rules and about 50% from the ML model, so it was labelled `LEGITIMATE`. The ML model counts for only 35% of the final score, so it cannot raise an email to `SUSPICIOUS` by itself.
+- **Rule engine matching (fixed).** Phrases were previously matched as substrings, so `coo` matched inside `cool` and `director` inside `directory`, and a single finance phrase plus a single executive title gave a `BEC` verdict. This caused two false alarms in live testing. Matching is now whole-word and `BEC` needs a score of at least 45.
 - **App and evaluation features differ slightly.** The app sets the URL subdomain features to 0 and adds the HTML body to the text, so live results may differ a little from the test figures.
 - **Data is older and mixed.** MeAJOR is built from 2005-2007 TREC corpora, and its positive class mixes spam and phishing. Results may not carry over to modern phishing.
 - **Literal `\n` sequences** in the text may fragment tokens. Not yet investigated.
@@ -278,6 +279,8 @@ Settings: `ML_BLEND_WEIGHT` (environment variable, default `0.35`) controls how 
 
 **Latest**
 
+- Rule engine: phrases are now matched as whole words, and a `BEC` verdict needs a score of at least 45. This removed two false alarms found in live testing.
+- Added `test_live.py`, which runs sample emails through the full pipeline (rules, ML, blend, verdict). Result: 7 of 8 correct.
 - `scripts/evaluate_test.py` now saves per-row predictions and probabilities for the test and validation splits.
 - Added `pick_threshold.py` to compare decision thresholds on validation and test data.
 - Added `PHISHING_THRESHOLD = 0.70` in `ml_classifier.py`, used for `mlLabel` (previously a hard-coded 0.5).
