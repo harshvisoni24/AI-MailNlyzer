@@ -29,3 +29,4 @@ README-SETUP.md
 
 ai-service/data/
 ai-service/app/ml/artifacts/
+ai-service/investigate*.py
