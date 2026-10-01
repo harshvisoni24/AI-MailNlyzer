@@ -67,7 +67,7 @@ def score_email(payload: Dict[str, Any]) -> Dict[str, Any]:
     factors["urgencyLanguage"] = min(len(content_signals["urgencyIndicators"]) * 6, 18)
     factors["becFinancialLanguage"] = min(len(content_signals["becIndicators"]) * 8, 24)
     factors["credentialHarvestingLanguage"] = min(len(content_signals["credentialHarvestingIndicators"]) * 8, 20)
-    factors["suspiciousUrlVolume"] = min(len(urls) * 3, 12)
+    factors["suspiciousUrlVolume"] = min(len(_untrusted_urls(urls)) * 3, 12)
     factors["executiveImpersonationSignal"] = 10 if content_signals["executiveImpersonationSignals"] and content_signals["becIndicators"] else 0
     factors["hasAttachments"] = 5 if attachments else 0
 
