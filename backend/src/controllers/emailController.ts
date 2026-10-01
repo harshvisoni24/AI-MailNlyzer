@@ -205,6 +205,7 @@ export async function listEmails(req: Request, res: Response, next: NextFunction
           threatClassification: true,
           threatScore: true,
           createdAt: true,
+          sentDate: true,
           isDemoData: true,
         },
       }),

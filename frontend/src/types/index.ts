@@ -26,6 +26,7 @@ export interface EmailSummary {
   threatClassification: ThreatClassification;
   threatScore: number | null;
   createdAt: string;
+  sentDate?: string | null;
   isDemoData?: boolean;
 }
 

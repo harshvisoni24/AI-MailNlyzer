@@ -34,7 +34,15 @@ function headerValueToString(value: unknown): string {
   }
   return String(value ?? "");
 }
-
+/** Fallback: timestamp of the oldest Received hop (text after the last ";"). */
+function dateFromReceivedChain(headers: { name: string; value: string }[]): Date | undefined {
+  const hops = headers.filter((h) => h.name.toLowerCase() === "received");
+  const oldest = hops[hops.length - 1]?.value;
+  const stamp = oldest?.split(";").pop()?.trim();
+  if (!stamp) return undefined;
+  const d = new Date(stamp);
+  return isNaN(d.getTime()) ? undefined : d;
+}
 export async function parseRawEmail(raw: string | Buffer): Promise<ParsedEmailData> {
   const parsed: ParsedMail = await simpleParser(raw);
 
@@ -73,7 +81,7 @@ export async function parseRawEmail(raw: string | Buffer): Promise<ParsedEmailDa
     cc: (parsed.cc && "value" in parsed.cc ? parsed.cc.value : []).map((t) => t.address ?? "").filter(Boolean),
     subject: parsed.subject ?? "(no subject)",
     messageId: parsed.messageId,
-    date: parsed.date,
+    date: parsed.date ?? dateFromReceivedChain(headers),
     replyTo: parsed.replyTo?.value?.[0]?.address,
     returnPath: headers.find((h) => h.name.toLowerCase() === "return-path")?.value,
     headers,

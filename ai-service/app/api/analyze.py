@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional
+from app.config.settings import settings
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -51,6 +52,12 @@ def analyze_email(request: AnalyzeRequest) -> Dict[str, Any]:
     blended_result = blend_ml_score(rule_result, ml_result)
 
     explanation = generate_explanation_and_story(blended_result, payload)
+    if blended_result.get("mlPhishingProbability") is not None:
+       w = settings.ml_blend_weight
+       explanation["observedFacts"].append(
+           f"Score = {round((1 - w) * 100)}% rule score ({blended_result['ruleScore']}) "
+           f"+ {round(w * 100)}% ML ({blended_result['mlPhishingProbability']}) = {blended_result['threatScore']}"
+       )
     recommended_actions = build_recommended_actions(blended_result["classification"], blended_result["threatScore"])
 
     return {

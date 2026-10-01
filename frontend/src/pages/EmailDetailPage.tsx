@@ -56,13 +56,21 @@ export default function EmailDetailPage() {
   }
 
   const explanation = email.aiExplanation;
+  const isClean = email.threatClassification === "LEGITIMATE";
+  const sourceLabel =
+  explanation?.source === "GEMINI"
+    ? "AI-assisted (Gemini)"
+    : explanation?.source === "RULE_ENGINE_ONLY"
+    ? "Rule engine only (AI service unavailable)"
+    : "Rule engine + ML model";
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-slate-100">{email.subject}</h1>
-          <p className="text-sm text-slate-500">From {email.fromAddress} · {new Date(email.createdAt).toLocaleString()}</p>
+          <p className="text-sm text-slate-500">From {email.fromAddress} · Sent {new Date(email.sentDate ?? email.createdAt).toLocaleString()}</p>
+          <p className="text-xs text-slate-600">Analyzed {new Date(email.createdAt).toLocaleString()}</p>
         </div>
         <div className="flex gap-2 shrink-0">
           <button className="btn-secondary" onClick={createCaseAndLink} disabled={creatingCase}>Create Case</button>
@@ -81,7 +89,7 @@ export default function EmailDetailPage() {
         <div className="flex flex-col gap-2">
           <ClassificationBadge classification={email.threatClassification} />
           <span className="text-xs text-slate-500">
-            Source: {explanation?.source === "GEMINI" ? "AI-assisted (Gemini)" : "Rule engine (AI unavailable)"}
+            Source: {sourceLabel}
           </span>
         </div>
         <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-slate-400">
@@ -111,12 +119,14 @@ export default function EmailDetailPage() {
                 {explanation.aiInferences.map((f, i) => <li key={i}>{f.statement}</li>)}
               </ul>
             </div>
-            <div>
+            {!isClean && (
+              <div>
               <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">Unknown</div>
               <ul className="space-y-1 text-slate-500">
                 {explanation.unknowns.map((f, i) => <li key={i}>{f}</li>)}
               </ul>
             </div>
+          )}
           </div>
         </div>
       )}
@@ -137,7 +147,7 @@ export default function EmailDetailPage() {
             <div className="flex justify-between"><span className="text-slate-500">From</span><span className="text-slate-200">{email.fromAddress}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Return-Path</span><span className="text-slate-200">{email.returnPath ?? "—"}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Reply-To</span><span className="text-slate-200">{email.replyTo ?? "—"}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">Message-ID</span><span className="text-slate-200 truncate max-w-[220px]">{email.messageId ?? "—"}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Message-ID</span><span className="text-slate-200 break-all text-right max-w-[320px]" title={email.messageId ?? ""}>{email.messageId ?? "—"}</span></div>
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between"><span className="text-sm text-slate-400">SPF</span><AuthResultBadge result={email.spfResult} /></div>
@@ -161,9 +171,11 @@ export default function EmailDetailPage() {
         ) : (
           <p className="text-sm text-slate-500">No Received headers found in this message.</p>
         )}
+        {email.iocs.some((i) => i.type === "IP") && (
         <p className="text-xs text-slate-600 mt-3">
-          IP geolocation identifies network infrastructure and does not necessarily represent the physical location or identity of the attacker.
+          IP geolocation identifies network infrastructure and does not necessarily represent the physical location or identity of the sender.
         </p>
+      )}
       </div>
 
       {/* URLS / IOCS */}
@@ -183,7 +195,7 @@ export default function EmailDetailPage() {
               {email.iocs.map((i) => (
                 <li key={i.id} className="flex justify-between border-b border-forensic-border/50 py-1">
                   <span className="text-slate-500">{i.type}</span>
-                  <span className="font-mono text-slate-300 truncate max-w-[220px]">{i.value}</span>
+                  <span className="font-mono text-slate-300 break-all text-right max-w-[260px]" title={i.value}>{i.value}</span>
                 </li>
               ))}
             </ul>

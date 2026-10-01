@@ -117,7 +117,7 @@ export async function getBlastRadius(req: Request, res: Response, next: NextFunc
       affectedUsers: affectedUsers.size,
       relatedEmails: relatedEmails.length,
       suspiciousDomains: domains.size,
-      suspiciousIps: ips.size,
+      suspiciousIps: ["LEGITIMATE", "LOW_RISK"].includes(email.threatClassification) ? 0 : ips.size,
       relatedCampaigns: new Set(campaignLinks.map((c: any) => c.campaignId)).size,
     });
   } catch (err) {

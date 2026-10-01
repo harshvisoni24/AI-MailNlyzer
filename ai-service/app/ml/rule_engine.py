@@ -1,3 +1,4 @@
+from urllib.parse import urlparse
 import re
 from typing import Any, Dict, List, Optional
 
@@ -40,7 +41,11 @@ def analyze_content(text_body: str, html_body: str, subject: str) -> Dict[str, A
         "credentialHarvestingIndicators": cred_hits,
         "executiveImpersonationSignals": exec_hits,
     }
+TRUSTED_URL_SUFFIXES = (".gov.in", ".nic.in")
 
+
+def _untrusted_urls(urls: List[str]) -> List[str]:
+      return [u for u in urls if not (urlparse(u).hostname or "").lower().endswith(TRUSTED_URL_SUFFIXES)]
 
 def score_email(payload: Dict[str, Any]) -> Dict[str, Any]:
     auth = payload.get("auth", {})
@@ -78,6 +83,8 @@ def score_email(payload: Dict[str, Any]) -> Dict[str, Any]:
         "classification": classification,
         "contentSignals": content_signals,
         "relayIps": relay_ips,
+        "auth": auth,
+        "lookalike": lookalike,
     }
 
 
@@ -100,7 +107,7 @@ def blend_ml_score(rule_result: Dict[str, Any], ml_result: Optional[Dict[str, An
     result["mlSource"] = ml_result["mlSource"]
 
     if result["classification"] in ("PHISHING", "SUSPICIOUS", "LOW_RISK", "LEGITIMATE", "UNKNOWN"):
-        result["classification"] = classify(blended, rule_result["contentSignals"], {}, None) \
+        result["classification"] = classify(blended, rule_result["contentSignals"], rule_result.get("auth", {}), rule_result.get("lookalike")) \
             if blended != rule_score else result["classification"]
 
     return result
