@@ -1,6 +1,6 @@
-# MailTrace AI
+# AI-MailNlyzer
 
-MailTrace AI analyses emails for phishing and related threats. It combines a **rule engine** (email authentication, header anomalies, suspicious phrases, links, attachments) with a **machine-learning classifier** (XGBoost on TF-IDF text features plus numeric features) and turns both into a single risk score, a verdict, and recommended response actions.
+AI-MailNlyzer analyses emails for phishing and related threats. It combines a **rule engine** (email authentication, header anomalies, suspicious phrases, links, attachments) with a **machine-learning classifier** (XGBoost on TF-IDF text features plus numeric features) and turns both into a single risk score, a verdict, and recommended response actions.
 
 > The ML service lives in `ai-service/`. [Add one line here about the rest of the project, e.g. the backend and frontend, if they are in this repo.]
 
@@ -227,7 +227,7 @@ Moving from 0.50 to 0.70 roughly halves false alarms and costs about 2 points of
 ## Project structure
 
 ```
-mailtrace-ai/
+ai-mailnlyzer/
   ai-service/
     app/
       api/analyze.py           # analysis endpoint

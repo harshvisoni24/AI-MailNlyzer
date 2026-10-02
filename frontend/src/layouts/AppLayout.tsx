@@ -71,7 +71,7 @@ export default function AppLayout() {
           <div className="flex items-center gap-2">
             <ShieldAlert className="text-forensic-accent" size={22} />
             <div>
-              <div className="font-mono font-bold text-slate-100 tracking-wide">MAILTRACE AI</div>
+              <div className="font-mono font-bold text-slate-100 tracking-wide">AI-MailNlyzer</div>
               <div className="text-[10px] text-slate-500 uppercase tracking-widest">Forensic Intelligence Platform</div>
             </div>
           </div>

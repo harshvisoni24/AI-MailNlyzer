@@ -1,6 +1,6 @@
 # Remote / Networked PostgreSQL Setup
 
-MAILTRACE AI never assumes PostgreSQL is running on `localhost`. The
+AI-MailNlyzer never assumes PostgreSQL is running on `localhost`. The
 database can live on another laptop, another machine on your LAN, or a
 cloud-hosted instance — everything is driven by the `DATABASE_URL`
 environment variable.

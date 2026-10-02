@@ -1,5 +1,5 @@
 """
-Evaluate the saved MailTrace XGBoost classifier on the held-out test split.
+Evaluate the saved AI-MailNlyzer XGBoost classifier on the held-out test split.
 
 Run from inside the ai-service folder (with the venv activated):
 

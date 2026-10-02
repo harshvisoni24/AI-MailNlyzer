@@ -20,7 +20,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     const { email, password } = loginSchema.parse(req.body);
     const result = await authService.login(email, password);
     await recordAudit({ userId: result.user.id, action: "LOGIN", status: "SUCCESS", ipAddress: req.ip });
-    res.cookie("mailtrace_token", result.token, {
+    res.cookie("ai_mailnlyzer_token", result.token, {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
@@ -44,7 +44,7 @@ export async function register(req: Request, res: Response, next: NextFunction) 
 }
 
 export async function logout(_req: Request, res: Response) {
-  res.clearCookie("mailtrace_token");
+  res.clearCookie("ai_mailnlyzer_token");
   return res.json({ message: "Logged out." });
 }
 

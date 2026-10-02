@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# One-shot local setup helper for MAILTRACE AI.
+# One-shot local setup helper for AI-MailNlyzer.
 # This does NOT start PostgreSQL for you — see docs/REMOTE_POSTGRESQL.md.
 set -e
 
-echo "== MAILTRACE AI setup =="
+echo "== AI-MailNlyzer setup =="
 
 echo "-- Backend: installing dependencies"
 (cd backend && npm install)

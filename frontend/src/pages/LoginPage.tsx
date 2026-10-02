@@ -30,7 +30,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <ShieldCheck className="text-forensic-accent mb-3" size={36} />
-          <h1 className="font-mono text-xl font-bold tracking-wide text-slate-100">MAILTRACE AI</h1>
+          <h1 className="font-mono text-xl font-bold tracking-wide text-slate-100">AI-MailNlyzer</h1>
           <p className="text-xs text-slate-500 uppercase tracking-widest mt-1">Detect. Trace. Correlate. Investigate.</p>
         </div>
         <form onSubmit={handleSubmit} className="panel p-6 space-y-4">

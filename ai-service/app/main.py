@@ -15,7 +15,7 @@ def require_api_key(x_api_key: str = Header(default="")):
 
 
 app = FastAPI(
-    title="MAILTRACE AI - AI Service",
+    title="AI-MailNlyzer - AI Service",
     description="AI/ML/RAG service for email threat detection and forensic explanation.",
     version="1.0.0",
 )
@@ -44,7 +44,7 @@ app.include_router(
 def health():
     return {
         "status": "ok",
-        "service": "mailtrace-ai-service",
+        "service": "ai-mailnlyzer-service",
         "geminiConfigured": settings.gemini_enabled,
         "geminiModel": settings.gemini_model if settings.gemini_enabled else None,
     }

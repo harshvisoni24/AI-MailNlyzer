@@ -15,7 +15,7 @@ async function start() {
 
   app.listen(env.port, () => {
     // eslint-disable-next-line no-console
-    console.log(`MAILTRACE AI backend listening on port ${env.port} (${env.nodeEnv})`);
+    console.log(`AI-MailNlyzer backend listening on port ${env.port} (${env.nodeEnv})`);
   });
 }
 

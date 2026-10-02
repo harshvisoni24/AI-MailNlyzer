@@ -1,8 +1,8 @@
 {
-  "name": "mailtrace-ai",
+  "name": "ai-mailnlyzer",
   "version": "1.0.0",
   "private": true,
-  "description": "MAILTRACE AI - AI-Powered Email Threat Detection, GeoLocation & Forensic Intelligence Platform",
+  "description": "AI-MailNlyzer - AI-Powered Email Threat Detection, GeoLocation & Forensic Intelligence Platform",
   "scripts": {
     "install:all": "npm install --prefix backend && npm install --prefix frontend",
     "dev:backend": "npm run dev --prefix backend",

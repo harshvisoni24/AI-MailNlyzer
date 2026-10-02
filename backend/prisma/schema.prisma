@@ -1,4 +1,4 @@
-// MAILTRACE AI - Prisma Schema
+// AI-MailNlyzer - Prisma Schema
 // PostgreSQL is the required database. pgvector extension is used for
 // embeddings but the app degrades gracefully if it is not enabled yet
 // (see Embedding model + docs/PGVECTOR.md).

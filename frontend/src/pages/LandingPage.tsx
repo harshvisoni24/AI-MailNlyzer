@@ -17,7 +17,7 @@ export default function LandingPage() {
         <ShieldAlert className="text-forensic-accent" size={28} />
         <span className="font-mono text-sm text-slate-400 tracking-widest uppercase">AICTE · Cyber Security Cell</span>
       </div>
-      <h1 className="font-mono text-4xl md:text-5xl font-bold text-slate-100 mb-3">MAILTRACE AI</h1>
+      <h1 className="font-mono text-4xl md:text-5xl font-bold text-slate-100 mb-3">AI-MailNlyzer</h1>
       <p className="text-lg text-slate-400 max-w-xl mb-2">From Suspicious Email to Actionable Intelligence.</p>
       <p className="text-sm text-forensic-accent tracking-widest uppercase mb-10">Detect · Trace · Correlate · Investigate</p>
 
@@ -37,7 +37,7 @@ export default function LandingPage() {
       </div>
 
       <p className="text-xs text-slate-600 mt-16 max-w-lg">
-        MAILTRACE AI does not merely detect suspicious emails. It transforms emails into explainable, correlated,
+        AI-MailNlyzer does not merely detect suspicious emails. It transforms emails into explainable, correlated,
         geolocated and evidence-preserving forensic intelligence.
       </p>
     </div>

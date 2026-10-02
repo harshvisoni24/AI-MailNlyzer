@@ -16,7 +16,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem("mailtrace_user");
+    const stored = localStorage.getItem("ai_mailnlyzer_user");
     if (stored) {
       setUser(JSON.parse(stored));
     }
@@ -25,15 +25,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     const { data } = await api.post("/auth/login", { email, password });
-    localStorage.setItem("mailtrace_token", data.token);
-    localStorage.setItem("mailtrace_user", JSON.stringify(data.user));
+    localStorage.setItem("ai_mailnlyzer_token", data.token);
+    localStorage.setItem("ai_mailnlyzer_user", JSON.stringify(data.user));
     setUser(data.user);
   }
 
   async function logout() {
     await api.post("/auth/logout").catch(() => undefined);
-    localStorage.removeItem("mailtrace_token");
-    localStorage.removeItem("mailtrace_user");
+    localStorage.removeItem("ai_mailnlyzer_token");
+    localStorage.removeItem("ai_mailnlyzer_user");
     setUser(null);
   }
 

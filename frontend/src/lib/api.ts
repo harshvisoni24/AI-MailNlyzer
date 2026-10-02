@@ -6,7 +6,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("mailtrace_token");
+  const token = localStorage.getItem("ai_mailnlyzer_token");
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -17,7 +17,7 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem("mailtrace_token");
+      localStorage.removeItem("ai_mailnlyzer_token");
       if (!window.location.pathname.includes("/login")) {
         window.location.href = "/login";
       }

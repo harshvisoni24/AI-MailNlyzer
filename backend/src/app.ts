@@ -35,7 +35,7 @@ app.get("/health", async (_req, res) => {
   const aiOk = await checkAiServiceHealth();
   res.json({
     status: "ok",
-    service: "mailtrace-backend",
+    service: "ai-mailnlyzer-backend",
     dependencies: { database: dbOk ? "up" : "down", aiService: aiOk ? "up" : "down" },
     timestamp: new Date().toISOString(),
   });

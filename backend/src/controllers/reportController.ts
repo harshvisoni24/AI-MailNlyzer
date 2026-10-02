@@ -116,7 +116,7 @@ export async function getReportPdf(req: Request, res: Response, next: NextFuncti
     const doc = new PDFDocument({ margin: 50 });
     doc.pipe(res);
 
-    doc.fontSize(18).text("MAILTRACE AI — Forensic Report", { align: "center" });
+    doc.fontSize(18).text("AI-MailNlyzer — Forensic Report", { align: "center" });
     doc.moveDown();
     doc.fontSize(10).fillColor("gray").text(`Generated: ${content.generatedAt} by ${content.generatedBy}`);
     doc.moveDown();

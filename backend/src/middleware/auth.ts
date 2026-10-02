@@ -19,7 +19,7 @@ declare global {
 
 export function authenticate(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
-  const token = header?.startsWith("Bearer ") ? header.slice(7) : req.cookies?.mailtrace_token;
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : req.cookies?.ai_mailnlyzer_token;
 
   if (!token) {
     return res.status(401).json({ error: "Authentication required." });

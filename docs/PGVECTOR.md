@@ -1,6 +1,6 @@
 # pgvector Setup
 
-MAILTRACE AI uses PostgreSQL's `pgvector` extension for embeddings-based
+AI-MailNlyzer uses PostgreSQL's `pgvector` extension for embeddings-based
 semantic search (RAG, similar-case lookup, campaign similarity). The
 platform is designed to **run without it** — if pgvector isn't enabled, the
 AI service automatically falls back to keyword-based retrieval and clearly
