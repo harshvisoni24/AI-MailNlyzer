@@ -115,7 +115,7 @@ Respond ONLY as compact JSON with this exact shape:
 }}"""
 
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(prompt, request_options={"timeout": 40})
         text = response.text.strip()
         text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         parsed = json.loads(text)
@@ -161,7 +161,10 @@ def build_observed_facts(rule_result: Dict[str, Any], payload: Dict[str, Any]) -
 def template_inferences(rule_result: Dict[str, Any]) -> List[Dict[str, Any]]:
     score = rule_result["threatScore"]
     classification = rule_result["classification"]
-    confidence = min(50 + score // 2, 97)
+    if classification in ("LEGITIMATE", "LOW_RISK"):
+        confidence = max(50, 100 - score)
+    else:
+        confidence = min(max(score, 50), 97)
     return [{"statement": f"Possible {classification.replace('_', ' ').title()} = {confidence}%", "confidence": confidence}]
 
 
@@ -208,7 +211,7 @@ Analyst question: {redact_text(question)}
 Respond with a concise, professional answer (max 6 sentences)."""
 
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(prompt, request_options={"timeout": 40})
         return {"answer": response.text.strip(), "groundedIn": list(context.keys()), "source": "GEMINI"}
     except Exception:
         return {

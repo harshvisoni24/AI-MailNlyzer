@@ -65,6 +65,7 @@ function isPublicIPv4(ip: string): boolean {
 export function extractIpsFromReceivedChain(receivedHeaders: string[]): string[] {
   const found = new Set<string>();
   for (const header of receivedHeaders) {
+    if (/^\s*by\s/i.test(header)) continue; // receiving server's own hop (Google's IPv6)
     for (const match of header.matchAll(IPV4_REGEX)) {
       const ip = match[1];
       if (!isPublicIPv4(ip)) continue;
@@ -76,7 +77,9 @@ export function extractIpsFromReceivedChain(receivedHeaders: string[]): string[]
   }
   return Array.from(found);
 }
-
+function sameOrg(a: string, b: string): boolean {
+  return a === b || a.endsWith("." + b) || b.endsWith("." + a);
+}
 export function detectHeaderAnomalies(params: {
   fromAddress: string;
   replyTo?: string;
@@ -88,7 +91,7 @@ export function detectHeaderAnomalies(params: {
 
   if (params.replyTo) {
     const replyDomain = params.replyTo.split("@")[1]?.toLowerCase();
-    if (replyDomain && fromDomain && replyDomain !== fromDomain) {
+      if(replyDomain && fromDomain && !sameOrg(replyDomain, fromDomain)) {
       anomalies.push(`Reply-To domain (${replyDomain}) differs from From domain (${fromDomain}).`);
     }
   }
@@ -98,14 +101,14 @@ export function detectHeaderAnomalies(params: {
     const rpMatch = returnPathStr.match(/<(.+?)>/);
     const rpAddress = rpMatch ? rpMatch[1] : returnPathStr;
     const rpDomain = rpAddress.split("@")[1]?.toLowerCase();
-    if (rpDomain && fromDomain && rpDomain !== fromDomain) {
+    if (rpDomain && fromDomain && !sameOrg(rpDomain, fromDomain)) {
       anomalies.push(`Return-Path domain (${rpDomain}) differs from From domain (${fromDomain}).`);
     }
   }
 
   if (params.messageId) {
     const midDomain = params.messageId.replace(/[<>]/g, "").split("@")[1]?.toLowerCase();
-    if (midDomain && fromDomain && !midDomain.endsWith(fromDomain) && !fromDomain.endsWith(midDomain)) {
+      if(midDomain && midDomain.includes(".") && fromDomain && !sameOrg(midDomain, fromDomain)) {
       anomalies.push(`Message-ID domain (${midDomain}) is unrelated to From domain (${fromDomain}); possible forged origin.`);
     }
   } else {

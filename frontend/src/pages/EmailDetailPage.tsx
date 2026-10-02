@@ -61,7 +61,7 @@ export default function EmailDetailPage() {
   explanation?.source === "GEMINI"
     ? "AI-assisted (Gemini)"
     : explanation?.source === "RULE_ENGINE_ONLY"
-    ? "Rule engine only (AI service unavailable)"
+    ? "Rule engine + ML model (Gemini explanation unavailable)"
     : "Rule engine + ML model";
 
   return (
@@ -105,8 +105,8 @@ export default function EmailDetailPage() {
       {/* WHY FLAGGED */}
       {explanation && (
         <div className="panel p-6">
-          <h2 className="text-sm font-semibold text-slate-200 mb-4">Why was this email flagged?</h2>
-          <div className="grid md:grid-cols-3 gap-6 text-sm">
+            <h2 className="text-sm font-semibold text-slate-200 mb-4">{isClean ? "Analysis summary" : "Why was this email flagged?"}</h2>
+          <div className={`grid ${isClean ? "md:grid-cols-2" : "md:grid-cols-3"} gap-6 text-sm`}>
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">Observed Fact</div>
               <ul className="space-y-1 text-slate-300">
@@ -145,7 +145,7 @@ export default function EmailDetailPage() {
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-slate-500">From</span><span className="text-slate-200">{email.fromAddress}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">Return-Path</span><span className="text-slate-200">{email.returnPath ?? "—"}</span></div>
+            <div className="flex justify-between gap-4"><span className="text-slate-500">Return-Path</span><span className="text-slate-200 break-all text-right max-w-[320px]">{email.returnPath ?? "—"}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Reply-To</span><span className="text-slate-200">{email.replyTo ?? "—"}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Message-ID</span><span className="text-slate-200 break-all text-right max-w-[320px]" title={email.messageId ?? ""}>{email.messageId ?? "—"}</span></div>
           </div>
