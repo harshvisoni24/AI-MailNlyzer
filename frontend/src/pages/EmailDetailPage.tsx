@@ -106,7 +106,8 @@ export default function EmailDetailPage() {
       {explanation && (
         <div className="panel p-6">
             <h2 className="text-sm font-semibold text-slate-200 mb-4">{isClean ? "Analysis summary" : "Why was this email flagged?"}</h2>
-          <div className={`grid ${isClean ? "md:grid-cols-2" : "md:grid-cols-3"} gap-6 text-sm`}>
+          <div className={`grid ${isClean ? "md:grid-cols-2" : "md:grid-cols-3"} gap-6 text-sm`}>cd backend
+            
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">Observed Fact</div>
               <ul className="space-y-1 text-slate-300">
