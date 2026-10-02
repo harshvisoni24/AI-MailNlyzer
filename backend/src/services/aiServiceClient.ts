@@ -3,7 +3,7 @@ import { env } from "../config/env";
 
 const client = axios.create({
   baseURL: env.aiServiceUrl,
-  timeout: 20000,
+  timeout: 80000,
   headers: { "x-api-key": env.aiServiceApiKey },
 });
 
@@ -33,6 +33,7 @@ export async function analyzeParsedEmail(payload: unknown): Promise<AiAnalysisRe
     } catch (err) {
       lastErr = err;
       console.error(`AI analyze attempt ${attempt} failed:`, err instanceof Error ? err.message : "unknown error");
+            if (axios.isAxiosError(err) && (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT")) break;
       await sleep(1000 * attempt);
     }
   }

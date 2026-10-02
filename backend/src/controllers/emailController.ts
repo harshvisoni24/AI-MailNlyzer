@@ -86,6 +86,7 @@ async function ingestAndAnalyze(rawSource: string, storagePath: string | null, c
   // unavailable, we degrade gracefully: header-forensics results still stand.
   const aiHealthy = await checkAiServiceHealth();
   let aiResult;
+  let aiError = aiHealthy ? "" : "health check failed (service unreachable)";
   if (aiHealthy) {
     try {
       aiResult = await analyzeParsedEmail({
@@ -102,6 +103,7 @@ async function ingestAndAnalyze(rawSource: string, storagePath: string | null, c
       });
     } catch (err) {
       console.error("AI service call failed:", err);
+      aiError = err instanceof Error ? err.message : "unknown error";
       aiResult = null;
     }
   }
@@ -125,7 +127,7 @@ async function ingestAndAnalyze(rawSource: string, storagePath: string | null, c
           `DMARC = ${auth.dmarc}`,
           ...anomalies,
         ],
-        aiInferences: aiResult?.aiInferences ?? (aiHealthy ? [] : [{ statement: "AI service unavailable — inference limited to rule engine.", confidence: 0 }]),
+        aiInferences: aiResult?.aiInferences ?? [{ statement: `AI unavailable: ${aiError}`, confidence: 0 }],
         unknowns: aiResult?.unknowns ?? ["Physical attacker location = UNKNOWN"],
         source: aiResult?.aiExplanationSource ?? "RULE_ENGINE_ONLY",
       } as object,
