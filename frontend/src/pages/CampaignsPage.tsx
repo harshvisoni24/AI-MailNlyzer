@@ -34,9 +34,9 @@ export default function CampaignsPage() {
       </p>
       <div className="grid md:grid-cols-2 gap-4">
         {campaigns.map((c) => (
-          <Link key={c.id} to={`/campaigns/${c.id}`} className="panel p-5 hover:border-forensic-accent">
-            <h2 className="text-slate-200 font-medium mb-1">{c.name}</h2>
-            <p className="text-xs text-slate-500 mb-2">{c.description}</p>
+            <Link key={c.id} to={`/campaigns/${c.id}`} className="panel p-5 min-w-0 overflow-hidden hover:border-forensic-accent">
+            <h2 title={c.name} className="text-slate-200 font-medium mb-1 truncate">{c.name}</h2>
+            <p title={c.description} className="text-xs text-slate-500 mb-2 break-all line-clamp-2">{c.description}</p>
             <div className="flex justify-between text-xs text-slate-500">
               <span>Confidence: {c.confidenceScore}%</span>
               <span>{c.emailCount} emails</span>
