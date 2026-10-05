@@ -78,13 +78,64 @@ export async function lookupThreatIntel(req: Request, res: Response, next: NextF
 
     // Provider adapters would be called here (not implemented without a live
     // key in this environment). Architecture is integration-ready.
-    return res.json({
-      source: hasVirusTotal ? "VIRUSTOTAL" : "ABUSEIPDB",
-      status: "LIVE_LOOKUP_NOT_EXECUTED_IN_THIS_ENVIRONMENT",
-      type,
-      value,
-      note: "API key detected. Wire the provider adapter in backend/src/services/threatIntelProviders/ to complete the live call.",
-    });
+        let result: any;
+
+    if (type === "ip" && hasAbuseIpDb) {
+      const r = await fetch(
+        `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(value)}&maxAgeInDays=90`,
+        { headers: { Key: process.env.ABUSEIPDB_API_KEY as string, Accept: "application/json" } }
+      );
+      const j: any = await r.json();
+      const score = j?.data?.abuseConfidenceScore ?? 0;
+      if (!r.ok) throw new AppError("AbuseIPDB lookup failed (" + r.status + "). Check the API key.", 502);
+      result = {
+        source: "ABUSEIPDB",
+        country: j?.data?.countryCode,
+        isp: j?.data?.isp,
+        status: "LIVE",
+        type,
+        value,
+        verdict: score >= 50 ? "Malicious" : score > 0 ? "Suspicious" : "Clean",
+        score,
+      };
+    } else if (hasVirusTotal) {
+      const path = type === "ip" ? "ip_addresses" : "domains";
+      const r = await fetch(
+        `https://www.virustotal.com/api/v3/${path}/${encodeURIComponent(value)}`,
+        { headers: { "x-apikey": process.env.VIRUSTOTAL_API_KEY as string } }
+      );
+      const j: any = await r.json();
+      if (!r.ok) throw new AppError("VirusTotal lookup failed (" + r.status + "). Check the API key.", 502);
+      const stats = j?.data?.attributes?.last_analysis_stats ?? {};
+      const bad = (stats.malicious ?? 0) + (stats.suspicious ?? 0);
+      result = {
+        source: "VIRUSTOTAL",
+        status: "LIVE",
+        type,
+        value,
+        verdict: bad >= 5 ? "Malicious" : bad >= 3 ? "Suspicious" : "Clean",
+        score: bad,
+      };
+    } else {
+      result = { source: "NONE", status: "UNSUPPORTED", type, value, note: "No key for this type." };
+    }
+    if (result.status === "LIVE") {
+      const score = Math.min(100, Number(result.score ?? 0));
+      if (type === "ip") {
+        await prisma.iP.upsert({
+          where: { address: value },
+          update: { reputationScore: score, lastEnrichedAt: new Date(), country: result.country, isp: result.isp },
+          create: { address: value, reputationScore: score, lastEnrichedAt: new Date(), country: result.country, isp: result.isp },
+        });
+      } else {
+        await prisma.domain.upsert({
+          where: { name: value },
+          update: { reputationScore: score, lastEnrichedAt: new Date() },
+          create: { name: value, reputationScore: score, lastEnrichedAt: new Date() },
+        });
+      }
+    }
+    return res.json(result);
   } catch (err) {
     return next(err);
   }

@@ -13,10 +13,13 @@ export default function ThreatIntelligencePage() {
   }, []);
 
   async function lookup() {
-    if (!query) return;
-    const type = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(query) ? "ip" : "domain";
-    const { data } = await api.get(`/threat-intelligence/lookup?type=${type}&value=${encodeURIComponent(query)}`);
+    const q = query.trim();
+    if (!q) return;
+    const type = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(q) ? "ip" : "domain";
+    const { data } = await api.get(`/threat-intelligence/lookup?type=${type}&value=${encodeURIComponent(q)}`);
     setLookupResult(data);
+    api.get("/threat-intelligence/domains").then((res) => setDomains(res.data));
+    api.get("/threat-intelligence/ips").then((res) => setIps(res.data));
   }
 
   return (
