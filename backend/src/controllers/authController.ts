@@ -36,7 +36,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
 export async function register(req: Request, res: Response, next: NextFunction) {
   try {
     const data = registerSchema.parse(req.body);
-    const user = await authService.registerUser(data);
+    const user = await authService.registerUser({ ...data, roleName: "VIEWER" });
     return res.status(201).json(user);
   } catch (err) {
     return next(err);

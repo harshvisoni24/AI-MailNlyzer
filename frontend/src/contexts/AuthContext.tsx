@@ -5,6 +5,7 @@ import { AuthUser } from "../types";
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
+  register: (name: string, email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -29,7 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("ai_mailnlyzer_user", JSON.stringify(data.user));
     setUser(data.user);
   }
-
+  async function register(fullName: string, email: string, password: string) {
+    await api.post("/auth/register", { fullName, email, password });
+    await login(email, password);
+  }
   async function logout() {
     await api.post("/auth/logout").catch(() => undefined);
     localStorage.removeItem("ai_mailnlyzer_token");
@@ -37,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login, register, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

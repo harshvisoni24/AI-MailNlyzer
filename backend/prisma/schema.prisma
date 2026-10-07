@@ -44,6 +44,10 @@ model User {
   auditLogs        AuditLog[]
   evidenceRecords  Evidence[]        @relation("AcquiredBy")
   notes            InvestigationNote[]
+  ownedCases     Case[]     @relation("CaseOwner")
+  ownedEmails    Email[]    @relation("EmailOwner")
+  ownedAlerts    Alert[]    @relation("AlertOwner")
+  ownedCampaigns Campaign[] @relation("CampaignOwner")
 
   @@index([email])
 }
@@ -74,6 +78,8 @@ model Case {
   status       CaseStatus   @default(OPEN)
   assignedToId String?
   assignedTo   User?        @relation("AssignedAnalyst", fields: [assignedToId], references: [id])
+  ownerId      String
+  owner        User         @relation("CaseOwner", fields: [ownerId], references: [id])
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   closedAt     DateTime?
@@ -127,6 +133,8 @@ model Email {
   id             String   @id @default(uuid())
   caseId         String?
   case           Case?    @relation(fields: [caseId], references: [id])
+  ownerId        String
+  owner          User     @relation("EmailOwner", fields: [ownerId], references: [id])
   rawSource      String   // stored raw .eml content (or path reference)
   storagePath    String?  // path to raw file on disk, if stored externally
   fromAddress    String
@@ -316,6 +324,8 @@ model Campaign {
   name             String
   confidenceScore  Int?
   description      String?
+  ownerId          String
+  owner            User     @relation("CampaignOwner", fields: [ownerId], references: [id])
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -436,6 +446,8 @@ model Alert {
   relatedCaseId String?
   threatType  String?
   isRead      Boolean       @default(false)
+  ownerId     String
+  owner       User          @relation("AlertOwner", fields: [ownerId], references: [id])
   createdAt   DateTime      @default(now())
 }
 
