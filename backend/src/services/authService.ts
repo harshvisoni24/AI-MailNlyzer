@@ -41,11 +41,11 @@ export async function registerUser(params: {
   if (existing) {
     throw new AppError("A user with this email already exists.", 409);
   }
-
+  const roleName = "SECURITY_ANALYST";
   const role = await prisma.role.upsert({
-    where: { name: params.roleName },
+    where: { name: roleName },
     update: {},
-    create: { name: params.roleName },
+    create: { name: roleName },
   });
 
   const passwordHash = await bcrypt.hash(params.password, 12);
