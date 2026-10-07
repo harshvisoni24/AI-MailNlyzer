@@ -8,11 +8,11 @@ import { AppError } from "../middleware/errorHandler";
  * This is intentionally rule-based/explainable rather than a black-box ML
  * clustering step, per the "no fabricated evidence" requirement.
  */
-export async function detectCampaigns(_req: Request, res: Response, next: NextFunction) {
+export async function detectCampaigns(req: Request, res: Response, next: NextFunction) {
   try {
     const emails = await prisma.email.findMany({
       include: { iocs: true },
-      where: { threatClassification: { notIn: ["LEGITIMATE", "LOW_RISK"] } },
+      where: { ownerId: req.user!.userId, threatClassification: { notIn: ["LEGITIMATE", "LOW_RISK"] } },
     });
 
     const groups = new Map<string, string[]>(); // ioc value -> email ids
@@ -30,12 +30,13 @@ export async function detectCampaigns(_req: Request, res: Response, next: NextFu
     const results = [];
     for (const [sharedIndicator, emailIds] of candidateClusters) {
       const uniqueEmailIds = Array.from(new Set(emailIds));
-      const existing = await prisma.campaign.findFirst({ where: { name: { contains: sharedIndicator } } });
+      const existing = await prisma.campaign.findFirst({ where: { ownerId: req.user!.userId, name: { contains: sharedIndicator } } });
       let campaign = existing;
       if (!campaign) {
         campaign = await prisma.campaign.create({
           data: {
             name: `Campaign correlated via ${sharedIndicator}`,
+            ownerId: req.user!.userId,
             confidenceScore: Math.min(50 + uniqueEmailIds.length * 10, 97),
             description: `Automatically correlated ${uniqueEmailIds.length} emails sharing infrastructure indicator "${sharedIndicator}".`,
           },
@@ -56,9 +57,10 @@ export async function detectCampaigns(_req: Request, res: Response, next: NextFu
   }
 }
 
-export async function listCampaigns(_req: Request, res: Response, next: NextFunction) {
+export async function listCampaigns(req: Request, res: Response, next: NextFunction) {
   try {
     const campaigns = await prisma.campaign.findMany({
+      where: { ownerId: req.user!.userId },
       include: { members: true },
       orderBy: { createdAt: "desc" },
     });
@@ -80,7 +82,7 @@ export async function listCampaigns(_req: Request, res: Response, next: NextFunc
 export async function getCampaign(req: Request, res: Response, next: NextFunction) {
   try {
     const campaign = await prisma.campaign.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id, ownerId: req.user!.userId },
       include: { members: { include: { email: true, case: true } } },
     });
     if (!campaign) throw new AppError("Campaign not found.", 404);
@@ -96,12 +98,12 @@ export async function getBlastRadius(req: Request, res: Response, next: NextFunc
     const emailId = req.query.emailId as string | undefined;
     if (!emailId) throw new AppError("emailId query parameter is required.", 400);
 
-    const email = await prisma.email.findUnique({ where: { id: emailId }, include: { iocs: true } });
+    const email = await prisma.email.findUnique({ where: { id: emailId, ownerId: req.user!.userId }, include: { iocs: true } });
     if (!email) throw new AppError("Email not found.", 404);
 
     const iocValues = email.iocs.map((i: any) => i.value);
     const relatedEmails = await prisma.email.findMany({
-      where: { iocs: { some: { value: { in: iocValues } } }, id: { not: emailId } },
+      where: { ownerId: req.user!.userId, iocs: { some: { value: { in: iocValues } } }, id: { not: emailId } },
       select: { id: true, toAddresses: true },
     });
 
@@ -132,7 +134,7 @@ export async function getThreatGraph(req: Request, res: Response, next: NextFunc
     if (!emailId) throw new AppError("emailId query parameter is required.", 400);
 
     const email = await prisma.email.findUnique({
-      where: { id: emailId },
+      where: { id: emailId, ownerId: req.user!.userId },
       include: { iocs: true, urls: true, campaignLinks: { include: { campaign: true } }, case: true },
     });
     if (!email) throw new AppError("Email not found.", 404);

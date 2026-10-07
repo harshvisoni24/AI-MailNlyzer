@@ -18,7 +18,7 @@ const pasteSchema = z.object({
   caseId: z.string().uuid().optional(),
 });
 
-async function ingestAndAnalyze(rawSource: string, storagePath: string | null, caseId: string | undefined, userId?: string) {
+async function ingestAndAnalyze(rawSource: string, storagePath: string | null, caseId: string | undefined, userId: string) {
   const parsed = await parseRawEmail(rawSource);
   const receivedChain = extractReceivedChain(parsed.headers);
   const auth = analyzeAuthentication(parsed.authRawHeader);
@@ -35,6 +35,7 @@ async function ingestAndAnalyze(rawSource: string, storagePath: string | null, c
   const email = await prisma.email.create({
     data: {
       caseId,
+      ownerId: userId,
       rawSource: rawSource.slice(0, 200000), // guard against unbounded storage
       storagePath: storagePath ?? undefined,
       fromAddress: parsed.from,
@@ -146,6 +147,7 @@ async function ingestAndAnalyze(rawSource: string, storagePath: string | null, c
         sourceEmailId: updated.id,
         relatedCaseId: caseId,
         threatType: finalClassification,
+        ownerId: userId,
       },
     });
   }
@@ -174,7 +176,7 @@ export async function uploadEmail(req: Request, res: Response, next: NextFunctio
     if (!req.file) throw new AppError("No file uploaded.", 400);
     const raw = fs.readFileSync(req.file.path, "utf-8");
     const caseId = req.body.caseId as string | undefined;
-    const email = await ingestAndAnalyze(raw, req.file.path, caseId, req.user?.userId);
+    const email = await ingestAndAnalyze(raw, req.file.path, caseId, req.user!.userId);
     return res.status(201).json(email);
   } catch (err) {
     return next(err);
@@ -184,7 +186,7 @@ export async function uploadEmail(req: Request, res: Response, next: NextFunctio
 export async function pasteEmail(req: Request, res: Response, next: NextFunction) {
   try {
     const { rawEmail, caseId } = pasteSchema.parse(req.body);
-    const email = await ingestAndAnalyze(rawEmail, null, caseId, req.user?.userId);
+    const email = await ingestAndAnalyze(rawEmail, null, caseId, req.user!.userId);
     return res.status(201).json(email);
   } catch (err) {
     return next(err);
@@ -197,6 +199,7 @@ export async function listEmails(req: Request, res: Response, next: NextFunction
     const pageSize = Math.min(Number(req.query.pageSize ?? 20), 100);
     const [items, total] = await Promise.all([
       prisma.email.findMany({
+        where: { ownerId: req.user!.userId },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -211,7 +214,7 @@ export async function listEmails(req: Request, res: Response, next: NextFunction
           isDemoData: true,
         },
       }),
-      prisma.email.count(),
+      prisma.email.count({ where: { ownerId: req.user!.userId } }),
     ]);
     return res.json({ items, total, page, pageSize });
   } catch (err) {
@@ -222,7 +225,7 @@ export async function listEmails(req: Request, res: Response, next: NextFunction
 export async function getEmail(req: Request, res: Response, next: NextFunction) {
   try {
     const email = await prisma.email.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id, ownerId: req.user!.userId },
       include: { headers: true, auth: true, urls: { include: { domain: true } }, attachments: true, iocs: true, case: true },
     });
     if (!email) throw new AppError("Email not found.", 404);
@@ -237,7 +240,7 @@ export async function getEmailHeaders(req: Request, res: Response, next: NextFun
   try {
     const headers = await prisma.emailHeader.findMany({ where: { emailId: req.params.id } });
     const auth = await prisma.emailAuthentication.findUnique({ where: { emailId: req.params.id } });
-    const email = await prisma.email.findUnique({ where: { id: req.params.id } });
+    const email = await prisma.email.findUnique({ where: { id: req.params.id, ownerId: req.user!.userId } });
     if (!email) throw new AppError("Email not found.", 404);
     return res.json({
       from: email.fromAddress,
@@ -255,7 +258,7 @@ export async function getEmailHeaders(req: Request, res: Response, next: NextFun
 
 export async function getEmailIocs(req: Request, res: Response, next: NextFunction) {
   try {
-    const iocs = await prisma.iOC.findMany({ where: { emailId: req.params.id } });
+    const iocs = await prisma.iOC.findMany({ where: { emailId: req.params.id, email: { ownerId: req.user!.userId } } });
     return res.json(iocs);
   } catch (err) {
     return next(err);
@@ -264,7 +267,7 @@ export async function getEmailIocs(req: Request, res: Response, next: NextFuncti
 
 export async function getEmailTrace(req: Request, res: Response, next: NextFunction) {
   try {
-    const email = await prisma.email.findUnique({ where: { id: req.params.id } });
+    const email = await prisma.email.findUnique({ where: { id: req.params.id, ownerId: req.user!.userId } });
     if (!email) throw new AppError("Email not found.", 404);
     const receivedChain = (email.receivedChain as string[]) ?? [];
     const ips = extractIpsFromReceivedChain(receivedChain);
