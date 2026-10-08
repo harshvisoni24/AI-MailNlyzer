@@ -32,6 +32,7 @@ model Role {
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
+  userId       String?  @unique
   passwordHash String
   fullName     String
   roleId       String

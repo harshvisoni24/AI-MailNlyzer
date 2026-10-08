@@ -4,12 +4,13 @@ import * as authService from "../services/authService";
 import { recordAudit } from "../services/auditService";
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  userId: z.string().min(4),
   password: z.string().min(8),
 });
 
 const registerSchema = z.object({
   email: z.string().email(),
+  userId: z.string().regex(/^[a-zA-Z0-9_]{4,20}$/),
   password: z.string().min(8),
   fullName: z.string().min(2),
   roleName: z.enum(["ADMIN", "SECURITY_ANALYST", "INVESTIGATOR", "VIEWER"]).default("VIEWER"),
@@ -17,8 +18,8 @@ const registerSchema = z.object({
 
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email, password } = loginSchema.parse(req.body);
-    const result = await authService.login(email, password);
+    const { userId, password } = loginSchema.parse(req.body);
+    const result = await authService.login(userId, password);
     await recordAudit({ userId: result.user.id, action: "LOGIN", status: "SUCCESS", ipAddress: req.ip });
     res.cookie("ai_mailnlyzer_token", result.token, {
       httpOnly: true,

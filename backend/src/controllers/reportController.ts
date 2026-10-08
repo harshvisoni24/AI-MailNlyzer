@@ -12,8 +12,8 @@ export async function generateReport(req: Request, res: Response, next: NextFunc
     if (!req.user) throw new AppError("Authentication required.", 401);
     const { caseId } = generateSchema.parse(req.body);
 
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
+    const caseData = await prisma.case.findFirst({
+      where: { id: caseId, ownerId: req.user.userId },
       include: {
         emails: { include: { headers: true, auth: true, urls: true, attachments: true, iocs: true } },
         evidence: { include: { custodyEvents: true } },
@@ -86,7 +86,10 @@ export async function generateReport(req: Request, res: Response, next: NextFunc
 
 export async function listReports(req: Request, res: Response, next: NextFunction) {
   try {
-    const where = req.query.caseId ? { caseId: String(req.query.caseId) } : {};
+    const where = {
+      case: { ownerId: req.user!.userId },
+      ...(req.query.caseId ? { caseId: String(req.query.caseId) } : {}),
+    };
     const reports = await prisma.forensicReport.findMany({ where, orderBy: { createdAt: "desc" } });
     return res.json(reports);
   } catch (err) {
@@ -96,7 +99,7 @@ export async function listReports(req: Request, res: Response, next: NextFunctio
 
 export async function getReport(req: Request, res: Response, next: NextFunction) {
   try {
-    const report = await prisma.forensicReport.findUnique({ where: { id: req.params.id } });
+    const report = await prisma.forensicReport.findFirst({ where: { id: req.params.id, case: { ownerId: req.user!.userId } } });
     if (!report) throw new AppError("Report not found.", 404);
     return res.json(report);
   } catch (err) {
@@ -159,7 +162,7 @@ function drawTable(doc: any, headers: string[], widths: number[], rows: string[]
 
 export async function getReportPdf(req: Request, res: Response, next: NextFunction) {
   try {
-    const report = await prisma.forensicReport.findUnique({ where: { id: req.params.id } });
+    const report = await prisma.forensicReport.findFirst({ where: { id: req.params.id, case: { ownerId: req.user!.userId } } });
     if (!report) throw new AppError("Report not found.", 404);
     const content = report.content as any;
     const ci = content.caseInformation ?? {};

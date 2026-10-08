@@ -1,191 +1,218 @@
-import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ShieldCheck, Mail, Lock, User, Eye, EyeOff, Network, Fingerprint, Activity } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
+import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
+import "./LoginPage.css";
+import { api } from "../lib/api";
 
-type Mode = "login" | "signup";
+function Shield() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+      <path d="M12 8v5" />
+      <path d="M12 16h.01" />
+    </svg>
+  );
+}
 
-const features = [
-  { icon: Fingerprint, title: "Detect", text: "AI-powered phishing and spoof detection" },
-  { icon: Network, title: "Correlate", text: "Link emails into campaigns and threat graphs" },
-  { icon: Activity, title: "Investigate", text: "Cases, evidence vault and forensic reports" },
+const checks = [
+  { label: "At least 8 characters", test: (p: string) => p.length >= 8 },
+  { label: "One uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
+  { label: "One number", test: (p: string) => /\d/.test(p) },
 ];
 
+const empty = { name: "", email: "", userId: "", password: "", confirm: "" };
+
 export default function LoginPage() {
-  const auth = useAuth() as any;
-  const navigate = useNavigate();
-  const [mode, setMode] = useState<Mode>("login");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [mode, setMode] = useState<"login" | "signup">("signup"); // new users create an account first
+  const [form, setForm] = useState(empty);
   const [showPw, setShowPw] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function switchMode(m: Mode) {
-    setMode(m);
-    setError(null);
-    setPassword("");
-    setConfirm("");
-  }
+  const isSignup = mode === "signup";
 
-  async function handleSubmit(e: FormEvent) {
+  const update = (e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const switchMode = (next: "login" | "signup") => {
+    setMode(next);
+    setError("");
+    setNotice("");
+    setForm(empty);
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setError("");
+    setNotice("");
 
-    if (mode === "signup") {
-      if (password.length < 8) return setError("Password must be at least 8 characters.");
-      if (password !== confirm) return setError("Passwords do not match.");
-      if (!auth.register) return setError("Sign up is not enabled yet.");
+    if (isSignup) {
+      if (form.name.trim().length < 2) return setError("Enter your full name.");
+      if (!/^\S+@\S+\.\S+$/.test(form.email)) return setError("Enter a valid email address.");
+      if (!/^[a-zA-Z0-9_]{4,20}$/.test(form.userId))
+        return setError("User ID must be 4-20 characters: letters, numbers or underscore.");
+      if (!checks.every((c) => c.test(form.password)))
+        return setError("Password does not meet all the requirements below.");
+      if (form.password !== form.confirm) return setError("Passwords do not match.");
+    } else {
+      if (!form.userId.trim()) return setError("Enter your user ID.");
+      if (!form.password) return setError("Enter your password.");
     }
 
     setLoading(true);
     try {
-      if (mode === "login") await auth.login(email, password);
-      else await auth.register(name, email, password);
-      navigate("/");
-    } catch (err: any) {
-      setError(
-        err.response?.data?.error ??
-          (mode === "login"
-            ? "Invalid email or password."
-            : "Could not create account. Try again.")
-      );
+      const body = isSignup
+        ? {
+            fullName: form.name.trim(),
+            email: form.email.trim().toLowerCase(),
+            userId: form.userId.trim(),
+            password: form.password,
+          }
+        : { userId: form.userId.trim(), password: form.password };
+
+      let data: any;
+      try {
+        const res = await api.post(`/auth/${isSignup ? "signup" : "login"}`, body);
+        data = res.data;
+      } catch (err: any) {
+        setError(
+          err.response
+            ? err.response.data?.message || err.response.data?.error || "Something went wrong. Try again."
+            : "Cannot reach the server. Check that the backend is running."
+        );
+        return;
+      }
+
+      if (isSignup) {
+        // account created -> now the user signs in with user ID + password
+        const createdId = form.userId.trim();
+        setMode("login");
+        setForm({ ...empty, userId: createdId });
+        setNotice("Account created. Sign in with your user ID and password.");
+        return;
+      }
+
+      if (data.token) localStorage.setItem("ai_mailnlyzer_token", data.token);
+      localStorage.setItem("ai_mailnlyzer_user", JSON.stringify(data.user));
+      window.location.href = "/";
+    } catch {
+      setError("Cannot reach the server. Check that the backend is running.");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
-      {/* Left brand panel */}
-      <div className="hidden lg:flex flex-col justify-between p-12 border-r border-slate-800 bg-gradient-to-br from-slate-900 via-slate-950 to-black">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="text-forensic-accent" size={32} />
-          <span className="font-mono text-xl font-bold tracking-wide text-slate-100">AI-MailNlyzer</span>
-        </div>
-        <div>
-          <h2 className="text-4xl font-bold text-slate-100 leading-tight">
-            Email threat forensics,<br />
-            <span className="text-forensic-accent">simplified.</span>
-          </h2>
-          <p className="text-slate-400 mt-4 max-w-md">
-            Analyze suspicious emails, trace their origin and connect attacks across your organization.
-          </p>
-          <div className="mt-10 space-y-5">
-            {features.map(({ icon: Icon, title, text }) => (
-              <div key={title} className="flex items-start gap-4">
-                <div className="p-2 rounded-lg bg-slate-800/60 border border-slate-700">
-                  <Icon size={18} className="text-forensic-accent" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-slate-200">{title}</div>
-                  <div className="text-xs text-slate-500">{text}</div>
-                </div>
-              </div>
-            ))}
+    <div className="auth">
+      {/* LEFT: product panel */}
+      <aside className="auth-brand" aria-hidden="true">
+        <div className="brand-logo">
+          <span className="brand-mark"><Shield /></span>
+          <div>
+            <div className="brand-name">AI-MailNlyzer</div>
+            <div className="brand-tag">Forensic intelligence platform</div>
           </div>
         </div>
-        <p className="text-xs text-slate-600">© {new Date().getFullYear()} AI-MailNlyzer. All rights reserved.</p>
-      </div>
 
-      {/* Right form panel */}
-      <div className="flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-sm">
-          <div className="lg:hidden flex flex-col items-center mb-8">
-            <ShieldCheck className="text-forensic-accent mb-2" size={36} />
-            <h1 className="font-mono text-xl font-bold text-slate-100">AI-MailNlyzer</h1>
+        <div className="brand-body">
+          <h2>Investigate suspicious emails with confidence.</h2>
+          <p>One place to analyse a message, check what it links to, and see who else is being targeted.</p>
+          <ul className="points">
+            <li>Sender and header checks</li>
+            <li>Link and attachment reputation</li>
+            <li>IP and domain threat intelligence</li>
+            <li>Campaign tracking across emails</li>
+          </ul>
+        </div>
+
+        <div className="brand-foot">Your analyses are private to your account.</div>
+      </aside>
+
+      {/* RIGHT: form */}
+      <main className="auth-form-wrap">
+        <form className="auth-card" onSubmit={handleSubmit} noValidate>
+          <div className="mobile-logo">
+            <span className="brand-mark"><Shield /></span>
+            <span className="brand-name">AI-MailNlyzer</span>
           </div>
 
-          <h2 className="text-2xl font-bold text-slate-100">
-            {mode === "login" ? "Welcome back" : "Create your account"}
-          </h2>
-          <p className="text-sm text-slate-500 mt-1 mb-6">
-            {mode === "login" ? "Sign in to continue to your dashboard." : "Start investigating email threats today."}
+          <h1>{isSignup ? "Create your account" : "Sign in"}</h1>
+          <p className="sub">
+            {isSignup
+              ? "Sign up first, then sign in with your user ID and password."
+              : "Enter your user ID and password to continue."}
           </p>
 
-          {/* Tabs */}
-          <div className="grid grid-cols-2 gap-1 p-1 mb-6 rounded-lg bg-slate-900 border border-slate-800">
-            {(["login", "signup"] as Mode[]).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => switchMode(m)}
-                className={`py-2 text-sm rounded-md transition ${
-                  mode === m ? "bg-slate-800 text-slate-100 font-medium" : "text-slate-500 hover:text-slate-300"
-                }`}
-              >
-                {m === "login" ? "Sign in" : "Sign up"}
+          {notice && <div className="notice" role="status">{notice}</div>}
+          {error && <div className="error" role="alert">{error}</div>}
+
+          {isSignup && (
+            <>
+              <label>
+                Full name
+                <input name="name" type="text" autoComplete="name"
+                  value={form.name} onChange={update} placeholder="Your name" />
+              </label>
+              <label>
+                Email
+                <input name="email" type="email" autoComplete="email"
+                  value={form.email} onChange={update} placeholder="you@example.com" />
+              </label>
+            </>
+          )}
+
+          <label>
+            User ID
+            <input name="userId" type="text" autoComplete="username"
+              value={form.userId} onChange={update}
+              placeholder={isSignup ? "Choose a user ID" : "Your user ID"} />
+          </label>
+
+          <label>
+            Password
+            <div className="pw">
+              <input name="password" type={showPw ? "text" : "password"}
+                autoComplete={isSignup ? "new-password" : "current-password"}
+                value={form.password} onChange={update}
+                placeholder={isSignup ? "Create a password" : "Your password"} />
+              <button type="button" className="toggle"
+                onClick={() => setShowPw(!showPw)}
+                aria-label={showPw ? "Hide password" : "Show password"}>
+                {showPw ? "Hide" : "Show"}
               </button>
-            ))}
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "signup" && (
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Full name</label>
-                <div className="relative">
-                  <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input className="input pl-9" value={name} onChange={(e) => setName(e.target.value)} placeholder="John Doe" required />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">Email</label>
-              <div className="relative">
-                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input className="input pl-9" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email" required />
-              </div>
             </div>
+          </label>
 
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">Password</label>
-              <div className="relative">
-                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  className="input pl-9 pr-10"
-                  type={showPw ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  required
-                />
-                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300" aria-label="Toggle password visibility">
-                  {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
-            </div>
+          {isSignup && (
+            <>
+              <ul className="rules">
+                {checks.map((c) => (
+                  <li key={c.label} className={c.test(form.password) ? "met" : ""}>
+                    {c.label}
+                  </li>
+                ))}
+              </ul>
+              <label>
+                Confirm password
+                <input name="confirm" type={showPw ? "text" : "password"}
+                  autoComplete="new-password" value={form.confirm}
+                  onChange={update} placeholder="Repeat your password" />
+              </label>
+            </>
+          )}
 
-            {mode === "signup" && (
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Confirm password</label>
-                <div className="relative">
-                  <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input className="input pl-9" type={showPw ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" autoComplete="new-password" required />
-                </div>
-              </div>
-            )}
+          <button className="submit" type="submit" disabled={loading}>
+            {loading ? "Please wait..." : isSignup ? "Create account" : "Sign in"}
+          </button>
 
-            {error && (
-              <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded px-3 py-2">{error}</div>
-            )}
-
-            <button className="btn-primary w-full" disabled={loading} type="submit">
-              {loading ? (mode === "login" ? "Signing in…" : "Creating account…") : mode === "login" ? "Sign in" : "Create account"}
-            </button>
-          </form>
-
-          <p className="text-xs text-slate-500 text-center mt-6">
-            {mode === "login" ? "Don't have an account? " : "Already have an account? "}
-            <button type="button" onClick={() => switchMode(mode === "login" ? "signup" : "login")} className="text-forensic-accent hover:underline">
-              {mode === "login" ? "Sign up" : "Sign in"}
+          <p className="switch">
+            {isSignup ? "Already have an account?" : "New to AI-MailNlyzer?"}{" "}
+            <button type="button" onClick={() => switchMode(isSignup ? "login" : "signup")}>
+              {isSignup ? "Sign in" : "Create an account"}
             </button>
           </p>
-        </div>
-      </div>
+        </form>
+      </main>
     </div>
   );
 }

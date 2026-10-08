@@ -29,6 +29,7 @@ app.use("/api", globalLimiter);
 
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/signup", authLimiter);
 
 app.get("/health", async (_req, res) => {
   const dbOk = await checkDatabaseConnection();

@@ -15,11 +15,17 @@ async function nextCaseNumber(): Promise<string> {
   return `CASE-${year}-${String(count + 1).padStart(5, "0")}`;
 }
 
+// Throws 404 unless the case exists AND belongs to the logged-in user.
+async function assertCaseOwner(caseId: string, userId: string) {
+  const found = await prisma.case.findFirst({ where: { id: caseId, ownerId: userId }, select: { id: true } });
+  if (!found) throw new AppError("Case not found.", 404);
+}
+
 export async function createCase(req: Request, res: Response, next: NextFunction) {
   try {
     const data = createCaseSchema.parse(req.body);
     const caseNumber = await nextCaseNumber();
-    const created = await prisma.case.create({ data: { ...data, caseNumber } });
+    const created = await prisma.case.create({ data: { ...data, caseNumber, ownerId: req.user!.userId } });
     return res.status(201).json(created);
   } catch (err) {
     return next(err);
@@ -29,6 +35,7 @@ export async function createCase(req: Request, res: Response, next: NextFunction
 export async function listCases(req: Request, res: Response, next: NextFunction) {
   try {
     const cases = await prisma.case.findMany({
+      where: { ownerId: req.user!.userId },
       orderBy: { createdAt: "desc" },
       include: {
         assignedTo: { select: { fullName: true, email: true } },
@@ -43,8 +50,8 @@ export async function listCases(req: Request, res: Response, next: NextFunction)
 
 export async function getCase(req: Request, res: Response, next: NextFunction) {
   try {
-    const found = await prisma.case.findUnique({
-      where: { id: req.params.id },
+    const found = await prisma.case.findFirst({
+      where: { id: req.params.id, ownerId: req.user!.userId },
       include: {
         assignedTo: true,
         emails: true,
@@ -70,6 +77,7 @@ const updateCaseSchema = z.object({
 export async function updateCase(req: Request, res: Response, next: NextFunction) {
   try {
     const data = updateCaseSchema.parse(req.body);
+    await assertCaseOwner(req.params.id, req.user!.userId);
     const updated = await prisma.case.update({
       where: { id: req.params.id },
       data: { ...data, closedAt: data.status === "CLOSED" ? new Date() : undefined },
@@ -86,6 +94,7 @@ export async function addCaseNote(req: Request, res: Response, next: NextFunctio
   try {
     const { content } = addNoteSchema.parse(req.body);
     if (!req.user) throw new AppError("Authentication required.", 401);
+    await assertCaseOwner(req.params.id, req.user.userId);
     const note = await prisma.investigationNote.create({
       data: { caseId: req.params.id, authorId: req.user.userId, content },
     });
@@ -97,6 +106,7 @@ export async function addCaseNote(req: Request, res: Response, next: NextFunctio
 
 export async function getCaseTimeline(req: Request, res: Response, next: NextFunction) {
   try {
+    await assertCaseOwner(req.params.id, req.user!.userId);
     const evidence = await prisma.evidence.findMany({
       where: { caseId: req.params.id },
       include: { custodyEvents: { orderBy: { occurredAt: "asc" } } },
@@ -114,6 +124,10 @@ export async function getCaseTimeline(req: Request, res: Response, next: NextFun
 export async function linkEmailToCase(req: Request, res: Response, next: NextFunction) {
   try {
     const { emailId } = z.object({ emailId: z.string().uuid() }).parse(req.body);
+    const userId = req.user!.userId;
+    await assertCaseOwner(req.params.id, userId);
+    const email = await prisma.email.findFirst({ where: { id: emailId, ownerId: userId }, select: { id: true } });
+    if (!email) throw new AppError("Email not found.", 404);
     const updated = await prisma.email.update({ where: { id: emailId }, data: { caseId: req.params.id } });
     return res.json(updated);
   } catch (err) {

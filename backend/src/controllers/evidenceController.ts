@@ -17,6 +17,15 @@ export async function createEvidence(req: Request, res: Response, next: NextFunc
   try {
     if (!req.user) throw new AppError("Authentication required.", 401);
     const data = createEvidenceSchema.parse(req.body);
+
+    // The case (and email, if given) must belong to the logged-in user.
+    const ownedCase = await prisma.case.findFirst({ where: { id: data.caseId, ownerId: req.user.userId }, select: { id: true } });
+    if (!ownedCase) throw new AppError("Case not found.", 404);
+    if (data.emailId) {
+      const ownedEmail = await prisma.email.findFirst({ where: { id: data.emailId, ownerId: req.user.userId }, select: { id: true } });
+      if (!ownedEmail) throw new AppError("Email not found.", 404);
+    }
+
     const evidenceHash = sha256(data.content);
 
     const evidence = await prisma.evidence.create({
@@ -68,7 +77,10 @@ export async function createEvidence(req: Request, res: Response, next: NextFunc
 
 export async function listEvidence(req: Request, res: Response, next: NextFunction) {
   try {
-    const where = req.query.caseId ? { caseId: String(req.query.caseId) } : {};
+    const where = {
+      case: { ownerId: req.user!.userId },
+      ...(req.query.caseId ? { caseId: String(req.query.caseId) } : {}),
+    };
     const evidence = await prisma.evidence.findMany({
       where,
       include: { custodyEvents: true, acquiredBy: { select: { fullName: true } } },
@@ -82,8 +94,8 @@ export async function listEvidence(req: Request, res: Response, next: NextFuncti
 
 export async function getEvidence(req: Request, res: Response, next: NextFunction) {
   try {
-    const evidence = await prisma.evidence.findUnique({
-      where: { id: req.params.id },
+    const evidence = await prisma.evidence.findFirst({
+      where: { id: req.params.id, case: { ownerId: req.user!.userId } },
       include: { custodyEvents: { orderBy: { occurredAt: "asc" } }, ledgerEntries: { orderBy: { timestamp: "asc" } }, acquiredBy: true },
     });
     if (!evidence) throw new AppError("Evidence not found.", 404);
@@ -95,25 +107,28 @@ export async function getEvidence(req: Request, res: Response, next: NextFunctio
 }
 
 /**
- * Verifies the entire hash chain for a piece of evidence's ledger entries by
- * recomputing each hash from its recorded predecessor. Any mismatch means
- * tampering (or manual DB edits) occurred after the fact.
+ * Verifies the hash chain of the ledger by checking that each entry points to
+ * the hash of the entry before it. The chain is shared by all users (each new
+ * entry links to the previous one), so the whole chain is checked, but the
+ * response only reveals details about the logged-in user's own entries.
  */
 export async function verifyLedgerIntegrity(req: Request, res: Response, next: NextFunction) {
   try {
-    const entries = await prisma.evidenceLedgerEntry.findMany({ orderBy: { timestamp: "asc" } });
+    const userId = req.user!.userId;
+    const entries = await prisma.evidenceLedgerEntry.findMany({
+      orderBy: { timestamp: "asc" },
+      include: { evidence: { select: { case: { select: { ownerId: true } } } } },
+    });
     let previousHash: string | null = null;
     for (const entry of entries) {
-      // Each entry must correctly reference the hash of the entry before it.
-      // A break here means the ledger row order/content was altered after
-      // the fact (e.g. direct DB edit), since entryHash itself commits to
-      // previousHash + evidenceHash + action + timestamp at write-time.
       if (entry.previousHash !== previousHash) {
-        return res.json({ valid: false, brokenAt: entry.id });
+        const isMine = entry.evidence.case.ownerId === userId;
+        return res.json({ valid: false, brokenAt: isMine ? entry.id : undefined });
       }
       previousHash = entry.entryHash;
     }
-    return res.json({ valid: true, totalEntries: entries.length });
+    const mine = entries.filter((e: any) => e.evidence.case.ownerId === userId).length;
+    return res.json({ valid: true, totalEntries: mine });
   } catch (err) {
     return next(err);
   }
