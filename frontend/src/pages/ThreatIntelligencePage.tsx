@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 
+const MAIL_PROVIDERS = ["sendgrid", "mailgun", "mailchimp", "mandrill", "amazon ses", "postmark", "sparkpost", "sendinblue", "brevo", "mailjet"];
+function isMailProvider(isp?: string) {
+  return !!isp && MAIL_PROVIDERS.some((p) => isp.toLowerCase().includes(p));
+}
+
 export default function ThreatIntelligencePage() {
   const [domains, setDomains] = useState<any[]>([]);
   const [ips, setIps] = useState<any[]>([]);
@@ -32,12 +37,25 @@ export default function ThreatIntelligencePage() {
           <input className="input" placeholder="e.g. 203.0.113.5 or micros0ft-login.com" value={query} onChange={(e) => setQuery(e.target.value)} />
           <button className="btn-primary" onClick={lookup}>Lookup</button>
         </div>
-        {lookupResult && (
-          <div className="mt-4 text-xs font-mono bg-forensic-bg border border-forensic-border rounded p-3">
-            <div className="text-slate-500 mb-1">
-              Source: <span className="text-forensic-accent">{lookupResult.source}</span> · Status: {lookupResult.status}
+                {lookupResult && (
+          <div className="mt-4 space-y-3">
+            {lookupResult.type === "ip" && (
+              <div className="text-sm bg-forensic-bg border border-forensic-border rounded p-3 space-y-1">
+                <div className="flex justify-between"><span className="text-slate-500">Verdict</span><span className="text-slate-200">{lookupResult.verdict} (score {lookupResult.score}/100)</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Network owner (ISP)</span><span className="text-slate-200">{lookupResult.isp ?? "Unknown"}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Registered country</span><span className="text-slate-200">{lookupResult.country ?? "Unknown"}</span></div>
+                {isMailProvider(lookupResult.isp) && (
+                  <p className="text-xs text-forensic-accent pt-1">This IP belongs to an email delivery service. The sender can be anyone using that service, from any country.</p>
+                )}
+                <p className="text-xs text-slate-600 pt-1">Country shows where the network is registered, not where the sender or website is physically located.</p>
+              </div>
+            )}
+            <div className="text-xs font-mono bg-forensic-bg border border-forensic-border rounded p-3">
+              <div className="text-slate-500 mb-1">
+                Source: <span className="text-forensic-accent">{lookupResult.source}</span> · Status: {lookupResult.status}
+              </div>
+              <pre className="whitespace-pre-wrap text-slate-400">{JSON.stringify(lookupResult, null, 2)}</pre>
             </div>
-            <pre className="whitespace-pre-wrap text-slate-400">{JSON.stringify(lookupResult, null, 2)}</pre>
           </div>
         )}
       </div>
