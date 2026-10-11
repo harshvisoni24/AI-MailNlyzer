@@ -5,7 +5,10 @@ export default function AuditLogPage() {
   const [logs, setLogs] = useState<any[]>([]);
 
   useEffect(() => {
-    api.get("/audit").then((res) => setLogs(res.data.items));
+  api
+  .get("/audit")
+  .then((res) => setLogs(res.data.items))
+  .catch((err) => console.error("AUDIT ERROR:", err.response?.status, err.response?.data));api.get("/audit").then((res) => setLogs(res.data.items));
   }, []);
 
   return (
