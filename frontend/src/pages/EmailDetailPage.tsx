@@ -57,6 +57,7 @@ export default function EmailDetailPage() {
 
   const explanation = email.aiExplanation;
   const isClean = email.threatClassification === "LEGITIMATE";
+  const mainIp = email.iocs.find((i) => i.type === "IP")?.value;
   const sourceLabel =
   explanation?.source === "GEMINI"
     ? "AI-assisted (Gemini)"
@@ -194,10 +195,20 @@ export default function EmailDetailPage() {
           {email.iocs.length === 0 ? <p className="text-sm text-slate-500">No IOCs extracted.</p> : (
             <ul className="space-y-1 text-xs">
               {email.iocs.map((i) => (
-                <li key={i.id} className="flex justify-between border-b border-forensic-border/50 py-1">
-                  <span className="text-slate-500">{i.type}</span>
-                  <span className="font-mono text-slate-300 break-all text-right max-w-[260px]" title={i.value}>{i.value}</span>
-                </li>
+              <li key={i.id} className="flex justify-between items-center border-b border-forensic-border/50 py-1">
+              <span className="text-slate-500">{i.type}</span>
+              <span className="flex items-center gap-3">
+              <span className="font-mono text-slate-300 break-all text-right max-w-[200px]" title={i.value}>{i.value}</span>
+              {(i.type === "IP" || i.type === "DOMAIN") && (
+              <Link
+                to={`/threat-intelligence?query=${encodeURIComponent(i.value)}&from=${email.id}`}
+                className="text-forensic-accent hover:underline whitespace-nowrap"
+              >
+              Check intel →
+              </Link>
+              )}
+              </span>
+              </li>
               ))}
             </ul>
           )}
@@ -221,6 +232,9 @@ export default function EmailDetailPage() {
 
       <div className="flex gap-3">
         <Link to={`/investigate/threat-graph?emailId=${email.id}`} className="btn-secondary">View Threat Graph</Link>
+        {mainIp && (
+  <Link to={`/threat-intelligence?query=${encodeURIComponent(mainIp)}&from=${email.id}`} className="btn-secondary">Check IP in Threat Intelligence</Link>
+)}
         <Link to="/copilot" className="btn-secondary">Ask Forensic Copilot</Link>
       </div>
     </div>
