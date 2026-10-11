@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 
 const MAIL_PROVIDERS = ["sendgrid", "mailgun", "mailchimp", "mandrill", "amazon ses", "postmark", "sparkpost", "sendinblue", "brevo", "mailjet"];
@@ -11,14 +12,24 @@ export default function ThreatIntelligencePage() {
   const [ips, setIps] = useState<any[]>([]);
   const [query, setQuery] = useState("");
   const [lookupResult, setLookupResult] = useState<any>(null);
+  const [searchParams] = useSearchParams();
+  const fromEmail = searchParams.get("from");
 
   useEffect(() => {
     api.get("/threat-intelligence/domains").then((res) => setDomains(res.data));
     api.get("/threat-intelligence/ips").then((res) => setIps(res.data));
   }, []);
 
-  async function lookup() {
-    const q = query.trim();
+  useEffect(() => {
+    const q = searchParams.get("query");
+    if (q) {
+      setQuery(q);
+      lookup(q);
+    }
+  }, [searchParams]);
+
+  async function lookup(value?: string) {
+    const q = (value ?? query).trim();
     if (!q) return;
     const type = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(q) ? "ip" : "domain";
     const { data } = await api.get(`/threat-intelligence/lookup?type=${type}&value=${encodeURIComponent(q)}`);
@@ -29,15 +40,20 @@ export default function ThreatIntelligencePage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
-      <h1 className="text-xl font-semibold text-slate-100">Threat Intelligence</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-slate-100">Threat Intelligence</h1>
+        {fromEmail && (
+          <Link to={`/investigate/emails/${fromEmail}`} className="btn-secondary">← Back to email</Link>
+        )}
+      </div>
 
       <div className="panel p-5">
         <h2 className="text-sm font-semibold text-slate-200 mb-3">Lookup IP / Domain</h2>
         <div className="flex gap-2">
           <input className="input" placeholder="e.g. 203.0.113.5 or micros0ft-login.com" value={query} onChange={(e) => setQuery(e.target.value)} />
-          <button className="btn-primary" onClick={lookup}>Lookup</button>
+          <button className="btn-primary" onClick={() => lookup()}>Lookup</button>
         </div>
-                {lookupResult && (
+        {lookupResult && (
           <div className="mt-4 space-y-3">
             {lookupResult.type === "ip" && (
               <div className="text-sm bg-forensic-bg border border-forensic-border rounded p-3 space-y-1">
