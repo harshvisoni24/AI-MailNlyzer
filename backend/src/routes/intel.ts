@@ -11,6 +11,7 @@ router.get("/ips", intelController.listIps);
 router.get("/ips/:id", intelController.getIp);
 router.get("/urls", intelController.listUrls);
 router.get("/lookup", intelController.lookupThreatIntel);
+router.get("/resolve", intelController.resolveHost);
 router.get("/search", intelController.globalSearch);
 
 export default router;

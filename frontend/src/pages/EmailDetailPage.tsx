@@ -11,12 +11,31 @@ export default function EmailDetailPage() {
   const [creatingCase, setCreatingCase] = useState(false);
   const [creatingEvidence, setCreatingEvidence] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [hostIps, setHostIps] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
     if (!id) return;
     api.get(`/emails/${id}`).then((res) => setEmail(res.data));
     api.get(`/campaigns/blast-radius?emailId=${id}`).then((res) => setBlastRadius(res.data)).catch(() => undefined);
   }, [id]);
+
+  // Find the real website IP(s) for every domain linked in the email.
+  useEffect(() => {
+    if (!email) return;
+    const hosts = Array.from(
+      new Set(
+        email.urls
+          .map((u) => { try { return new URL(u.rawUrl).hostname; } catch { return ""; } })
+          .filter(Boolean)
+      )
+    ).slice(0, 5);
+    hosts.forEach((h) => {
+      api
+        .get(`/threat-intelligence/resolve?host=${encodeURIComponent(h)}`)
+        .then((r) => setHostIps((prev) => ({ ...prev, [h]: r.data.ips })))
+        .catch(() => undefined);
+    });
+  }, [email]);
 
   async function createCaseAndLink() {
     if (!email) return;
@@ -197,7 +216,14 @@ export default function EmailDetailPage() {
   try { host = new URL(u.rawUrl).hostname; } catch {}
   return (
     <li key={u.id} className="flex justify-between items-center gap-3">
-      <span className="break-all">{u.rawUrl}</span>
+      <span className="break-all">
+        {u.rawUrl}
+        {host && (hostIps[host]?.length ?? 0) > 0 && (
+          <span className="block text-slate-500">
+            Website IP: {hostIps[host].map((r: any) => r.ip + (r.country ? ` (${r.country})` : "")).join(", ")}
+          </span>
+        )}
+      </span>
       {host && (
         <Link
           to={`/threat-intelligence?query=${encodeURIComponent(host)}&from=${email.id}`}
@@ -220,7 +246,14 @@ export default function EmailDetailPage() {
               <li key={i.id} className="flex justify-between items-center border-b border-forensic-border/50 py-1">
               <span className="text-slate-500">{i.type}</span>
               <span className="flex items-center gap-3">
-              <span className="font-mono text-slate-300 break-all text-right max-w-[200px]" title={i.value}>{i.value}</span>
+              <span className="font-mono text-slate-300 break-all text-right max-w-[200px]" title={i.value}>
+                {i.value}
+                {i.type === "URL" && (hostIps[intelTarget("URL", i.value)]?.length ?? 0) > 0 && (
+                  <span className="block text-slate-500">
+                    Website IP: {hostIps[intelTarget("URL", i.value)].map((r: any) => r.ip).join(", ")}
+                  </span>
+                )}
+              </span>
               {["IP", "DOMAIN", "URL"].includes(i.type) && intelTarget(i.type, i.value) && (
               <Link
                  to={`/threat-intelligence?query=${encodeURIComponent(intelTarget(i.type, i.value))}&from=${email.id}`}

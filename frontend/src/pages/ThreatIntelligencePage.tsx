@@ -76,17 +76,25 @@ export default function ThreatIntelligencePage() {
       <span className="text-slate-500">Website IP(s)</span>
       <div className="text-right space-y-1">
         {lookupResult.resolvedIps?.length ? (
-          lookupResult.resolvedIps.map((ip: string) => (
-            <div key={ip} className="flex items-center justify-end gap-3">
-              <span className="font-mono text-slate-200">{ip}</span>
-              <button
-                className="text-forensic-accent hover:underline text-xs"
-                onClick={() => { setQuery(ip); lookup(ip); }}
-              >
-                Check this IP →
-              </button>
-            </div>
-          ))
+                    lookupResult.resolvedIps.map((r: any) => {
+            const ip = typeof r === "string" ? r : r.ip;
+            return (
+              <div key={ip} className="space-y-0.5">
+                <div className="flex items-center justify-end gap-3">
+                  <span className="font-mono text-slate-200">{ip}</span>
+                  <button
+                    className="text-forensic-accent hover:underline text-xs"
+                    onClick={() => { setQuery(ip); lookup(ip); }}
+                  >
+                    Check this IP →
+                  </button>
+                </div>
+                {typeof r !== "string" && (r.isp || r.country) && (
+                  <div className="text-xs text-slate-500">{r.isp ?? "ISP unknown"}{r.country ? ` · ${r.country}` : ""}</div>
+                )}
+              </div>
+            );
+          })
         ) : (
           <span className="text-slate-500">Could not resolve</span>
         )}

@@ -3,6 +3,56 @@ import { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/prisma";
 import { AppError } from "../middleware/errorHandler";
 
+// Accepts "sih.gov.in", "https://sih.gov.in/signin" etc. and returns just the host name.
+function toHostname(input: string): string {
+  const v = input.trim();
+  try {
+    return new URL(v.includes("://") ? v : `https://${v}`).hostname.toLowerCase();
+  } catch {
+    return v.toLowerCase();
+  }
+}
+
+// Finds the IPv4 address(es) a domain points to. Asks Google/Cloudflare DNS first
+// (some networks' own DNS returns nothing), then falls back to the system DNS.
+async function resolveIpv4(host: string): Promise<string[]> {
+  const attempts: (string[] | null)[] = [["8.8.8.8", "1.1.1.1"], null];
+  for (const servers of attempts) {
+    try {
+      const resolver = new dns.Resolver();
+      if (servers) resolver.setServers(servers);
+      const ips = await resolver.resolve4(host);
+      if (ips.length) return ips;
+    } catch {
+      /* try the next DNS server list */
+    }
+  }
+  return [];
+}
+
+// AbuseIPDB check for one IP. Returns null if the lookup fails.
+async function checkAbuseIp(ip: string) {
+  try {
+    const r = await fetch(
+      `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90`,
+      { headers: { Key: process.env.ABUSEIPDB_API_KEY as string, Accept: "application/json" } }
+    );
+    if (!r.ok) return null;
+    const j: any = await r.json();
+    const score = j?.data?.abuseConfidenceScore ?? 0;
+    return {
+      ip,
+      country: j?.data?.countryCode,
+      isp: j?.data?.isp,
+      usageType: j?.data?.usageType,
+      score,
+      verdict: score >= 50 ? "Malicious" : score > 0 ? "Suspicious" : "Clean",
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function listDomains(_req: Request, res: Response, next: NextFunction) {
   try {
     const domains = await prisma.domain.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
@@ -60,8 +110,9 @@ export async function listUrls(_req: Request, res: Response, next: NextFunction)
  */
 export async function lookupThreatIntel(req: Request, res: Response, next: NextFunction) {
   try {
-    const { type, value } = req.query as { type?: string; value?: string };
-    if (!type || !value) throw new AppError("type and value query parameters are required.", 400);
+    const { type, value: rawValue } = req.query as { type?: string; value?: string };
+    if (!type || !rawValue) throw new AppError("type and value query parameters are required.", 400);
+    const value = type === "domain" ? toHostname(rawValue) : rawValue.trim();
 
     const hasVirusTotal = Boolean(process.env.VIRUSTOTAL_API_KEY);
     const hasAbuseIpDb = Boolean(process.env.ABUSEIPDB_API_KEY);
@@ -93,6 +144,7 @@ export async function lookupThreatIntel(req: Request, res: Response, next: NextF
         source: "ABUSEIPDB",
         country: j?.data?.countryCode,
         isp: j?.data?.isp,
+        usageType: j?.data?.usageType,
         status: "LIVE",
         type,
         value,
@@ -109,9 +161,12 @@ export async function lookupThreatIntel(req: Request, res: Response, next: NextF
       if (!r.ok) throw new AppError("VirusTotal lookup failed (" + r.status + "). Check the API key.", 502);
       const stats = j?.data?.attributes?.last_analysis_stats ?? {};
       const bad = (stats.malicious ?? 0) + (stats.suspicious ?? 0);
-      let resolvedIps: string[] = [];
+      let resolvedIps: any[] = [];
       if (type === "domain") {
-        try { resolvedIps = await dns.resolve4(value); } catch { /* no A record */ }
+        const found = (await resolveIpv4(value)).slice(0, 3);
+        resolvedIps = await Promise.all(
+          found.map(async (ip) => (hasAbuseIpDb ? await checkAbuseIp(ip) : null) ?? { ip })
+        );
       }
       result = {
         source: "VIRUSTOTAL",
@@ -139,9 +194,35 @@ export async function lookupThreatIntel(req: Request, res: Response, next: NextF
           update: { reputationScore: score, lastEnrichedAt: new Date() },
           create: { name: value, reputationScore: score, lastEnrichedAt: new Date() },
         });
+        for (const r of result.resolvedIps ?? []) {
+          if (r.country === undefined && r.isp === undefined) continue;
+          const ipScore = Math.min(100, Number(r.score ?? 0));
+          await prisma.iP.upsert({
+            where: { address: r.ip },
+            update: { reputationScore: ipScore, lastEnrichedAt: new Date(), country: r.country, isp: r.isp },
+            create: { address: r.ip, reputationScore: ipScore, lastEnrichedAt: new Date(), country: r.country, isp: r.isp },
+          });
+        }
       }
     }
     return res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/** Cheap DNS-only lookup: which IP(s) does this website currently point to? */
+export async function resolveHost(req: Request, res: Response, next: NextFunction) {
+  try {
+    const raw = String(req.query.host ?? "").trim();
+    if (!raw) throw new AppError("host query parameter is required.", 400);
+    const host = toHostname(raw);
+    const found = (await resolveIpv4(host)).slice(0, 3);
+    const hasAbuseIpDb = Boolean(process.env.ABUSEIPDB_API_KEY);
+    const ips = await Promise.all(
+      found.map(async (ip) => (hasAbuseIpDb ? await checkAbuseIp(ip) : null) ?? { ip })
+    );
+    return res.json({ host, ips });
   } catch (err) {
     return next(err);
   }
@@ -154,14 +235,14 @@ export async function globalSearch(req: Request, res: Response, next: NextFuncti
 
     const [emails, domains, ips, cases, iocs] = await Promise.all([
       prisma.email.findMany({
-        where: { OR: [{ subject: { contains: q, mode: "insensitive" } }, { fromAddress: { contains: q, mode: "insensitive" } }] },
+        where: { ownerId: req.user!.userId, OR: [{ subject: { contains: q, mode: "insensitive" } }, { fromAddress: { contains: q, mode: "insensitive" } }] },
         take: 10,
         select: { id: true, subject: true, fromAddress: true, threatClassification: true },
       }),
       prisma.domain.findMany({ where: { name: { contains: q, mode: "insensitive" } }, take: 10 }),
       prisma.iP.findMany({ where: { address: { contains: q } }, take: 10 }),
-      prisma.case.findMany({ where: { OR: [{ title: { contains: q, mode: "insensitive" } }, { caseNumber: { contains: q, mode: "insensitive" } }] }, take: 10 }),
-      prisma.iOC.findMany({ where: { value: { contains: q, mode: "insensitive" } }, take: 10 }),
+      prisma.case.findMany({ where: { ownerId: req.user!.userId, OR: [{ title: { contains: q, mode: "insensitive" } }, { caseNumber: { contains: q, mode: "insensitive" } }] }, take: 10 }),
+      prisma.iOC.findMany({ where: { value: { contains: q, mode: "insensitive" }, email: { ownerId: req.user!.userId } }, take: 10 }),
     ]);
 
     return res.json({ emails, domains, ips, cases, iocs });
