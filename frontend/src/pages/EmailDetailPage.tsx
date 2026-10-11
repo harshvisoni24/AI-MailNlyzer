@@ -58,6 +58,12 @@ export default function EmailDetailPage() {
   const explanation = email.aiExplanation;
   const isClean = email.threatClassification === "LEGITIMATE";
   const mainIp = email.iocs.find((i) => i.type === "IP")?.value;
+  function intelTarget(type: string, value: string): string {
+  if (type === "URL") {
+    try { return new URL(value).hostname; } catch { return ""; }
+  }
+  return value;
+  }
   const sourceLabel =
   explanation?.source === "GEMINI"
     ? "AI-assisted (Gemini)"
@@ -186,7 +192,23 @@ export default function EmailDetailPage() {
           <h2 className="text-sm font-semibold text-slate-200 mb-3">URL Intelligence</h2>
           {email.urls.length === 0 ? <p className="text-sm text-slate-500">No URLs found.</p> : (
             <ul className="space-y-1 text-xs font-mono text-slate-400">
-              {email.urls.map((u) => <li key={u.id} className="break-all">{u.rawUrl}</li>)}
+              {email.urls.map((u) => {
+  let host = "";
+  try { host = new URL(u.rawUrl).hostname; } catch {}
+  return (
+    <li key={u.id} className="flex justify-between items-center gap-3">
+      <span className="break-all">{u.rawUrl}</span>
+      {host && (
+        <Link
+          to={`/threat-intelligence?query=${encodeURIComponent(host)}&from=${email.id}`}
+          className="text-forensic-accent hover:underline whitespace-nowrap"
+        >
+          Check intel →
+        </Link>
+      )}
+    </li>
+  );
+})}
             </ul>
           )}
         </div>
@@ -199,14 +221,14 @@ export default function EmailDetailPage() {
               <span className="text-slate-500">{i.type}</span>
               <span className="flex items-center gap-3">
               <span className="font-mono text-slate-300 break-all text-right max-w-[200px]" title={i.value}>{i.value}</span>
-              {(i.type === "IP" || i.type === "DOMAIN") && (
+              {["IP", "DOMAIN", "URL"].includes(i.type) && intelTarget(i.type, i.value) && (
               <Link
-                to={`/threat-intelligence?query=${encodeURIComponent(i.value)}&from=${email.id}`}
+                 to={`/threat-intelligence?query=${encodeURIComponent(intelTarget(i.type, i.value))}&from=${email.id}`}
                 className="text-forensic-accent hover:underline whitespace-nowrap"
               >
-              Check intel →
+                Check intel →
               </Link>
-              )}
+             )}
               </span>
               </li>
               ))}

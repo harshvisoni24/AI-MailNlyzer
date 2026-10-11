@@ -1,3 +1,4 @@
+import { promises as dns } from "dns";
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/prisma";
 import { AppError } from "../middleware/errorHandler";
@@ -108,6 +109,10 @@ export async function lookupThreatIntel(req: Request, res: Response, next: NextF
       if (!r.ok) throw new AppError("VirusTotal lookup failed (" + r.status + "). Check the API key.", 502);
       const stats = j?.data?.attributes?.last_analysis_stats ?? {};
       const bad = (stats.malicious ?? 0) + (stats.suspicious ?? 0);
+      let resolvedIps: string[] = [];
+      if (type === "domain") {
+        try { resolvedIps = await dns.resolve4(value); } catch { /* no A record */ }
+      }
       result = {
         source: "VIRUSTOTAL",
         status: "LIVE",
@@ -115,6 +120,7 @@ export async function lookupThreatIntel(req: Request, res: Response, next: NextF
         value,
         verdict: bad >= 5 ? "Malicious" : bad >= 3 ? "Suspicious" : "Clean",
         score: bad,
+        resolvedIps,
       };
     } else {
       result = { source: "NONE", status: "UNSUPPORTED", type, value, note: "No key for this type." };

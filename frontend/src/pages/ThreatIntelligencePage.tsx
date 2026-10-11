@@ -66,6 +66,35 @@ export default function ThreatIntelligencePage() {
                 <p className="text-xs text-slate-600 pt-1">Country shows where the network is registered, not where the sender or website is physically located.</p>
               </div>
             )}
+            {lookupResult.type === "domain" && (
+  <div className="text-sm bg-forensic-bg border border-forensic-border rounded p-3 space-y-2">
+    <div className="flex justify-between">
+      <span className="text-slate-500">Verdict</span>
+      <span className="text-slate-200">{lookupResult.verdict} (score {lookupResult.score})</span>
+    </div>
+    <div className="flex justify-between items-start gap-4">
+      <span className="text-slate-500">Website IP(s)</span>
+      <div className="text-right space-y-1">
+        {lookupResult.resolvedIps?.length ? (
+          lookupResult.resolvedIps.map((ip: string) => (
+            <div key={ip} className="flex items-center justify-end gap-3">
+              <span className="font-mono text-slate-200">{ip}</span>
+              <button
+                className="text-forensic-accent hover:underline text-xs"
+                onClick={() => { setQuery(ip); lookup(ip); }}
+              >
+                Check this IP →
+              </button>
+            </div>
+          ))
+        ) : (
+          <span className="text-slate-500">Could not resolve</span>
+        )}
+      </div>
+    </div>
+    <p className="text-xs text-slate-600">Large sites may use a CDN, so this IP can belong to a shared network and not to the site's own server.</p>
+  </div>
+)}
             <div className="text-xs font-mono bg-forensic-bg border border-forensic-border rounded p-3">
               <div className="text-slate-500 mb-1">
                 Source: <span className="text-forensic-accent">{lookupResult.source}</span> · Status: {lookupResult.status}
