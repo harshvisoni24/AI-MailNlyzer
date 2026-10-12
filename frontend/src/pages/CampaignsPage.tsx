@@ -9,7 +9,9 @@ export default function CampaignsPage() {
   function load() {
     api.get("/campaigns").then((res) => setCampaigns(res.data));
   }
-  useEffect(load, []);
+  useEffect(() => {
+  api.post("/campaigns/detect").catch(() => undefined).finally(load);
+  }, []);
 
   async function runDetection() {
     setDetecting(true);

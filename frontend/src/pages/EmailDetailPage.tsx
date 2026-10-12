@@ -39,10 +39,15 @@ export default function EmailDetailPage() {
 
   async function createCaseAndLink() {
     if (!email) return;
+    if (email.caseId) {
+    setMessage("This email already has a case.");
+    return;
+    }
     setCreatingCase(true);
     try {
       const { data: newCase } = await api.post("/cases", { title: `Investigation: ${email.subject}`, severity: (email.threatScore ?? 0) >= 90 ? "CRITICAL" : (email.threatScore ?? 0) >= 70 ? "HIGH" : "MEDIUM" });
       await api.post(`/cases/${newCase.id}/link-email`, { emailId: email.id });
+      setEmail({ ...email, caseId: newCase.id });
       setMessage(`Case ${newCase.caseNumber} created and linked.`);
     } catch {
       setMessage("Failed to create case.");
@@ -60,6 +65,7 @@ export default function EmailDetailPage() {
         const { data: newCase } = await api.post("/cases", { title: `Investigation: ${email.subject}` });
         await api.post(`/cases/${newCase.id}/link-email`, { emailId: email.id });
         caseId = newCase.id;
+        setEmail({ ...email, caseId: newCase.id });
       }
       await api.post("/evidence", { caseId, emailId: email.id, evidenceType: "EMAIL", source: "Upload/Paste", content: email.id + email.subject });
       setMessage("Evidence preserved with SHA-256 hash and chain-of-custody entry.");
@@ -99,7 +105,7 @@ export default function EmailDetailPage() {
           <p className="text-xs text-slate-600">Analyzed {new Date(email.createdAt).toLocaleString()}</p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <button className="btn-secondary" onClick={createCaseAndLink} disabled={creatingCase}>Create Case</button>
+          <button className="btn-secondary" onClick={createCaseAndLink} disabled={creatingCase || !!email.caseId}>Create Case</button>
           <button className="btn-primary" onClick={preserveEvidence} disabled={creatingEvidence}>Preserve Evidence</button>
         </div>
       </div>
