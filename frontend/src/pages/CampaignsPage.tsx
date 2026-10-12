@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [detecting, setDetecting] = useState(false);
+  const ranOnce = useRef(false);
 
   function load() {
     api.get("/campaigns").then((res) => setCampaigns(res.data));
   }
   useEffect(() => {
+  if (ranOnce.current) return;
+  ranOnce.current = true;
   api.post("/campaigns/detect").catch(() => undefined).finally(load);
   }, []);
 

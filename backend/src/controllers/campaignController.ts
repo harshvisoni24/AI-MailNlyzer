@@ -8,7 +8,16 @@ import { AppError } from "../middleware/errorHandler";
  * This is intentionally rule-based/explainable rather than a black-box ML
  * clustering step, per the "no fabricated evidence" requirement.
  */
+const running = new Map<string, Promise<void>>();
 export async function detectCampaigns(req: Request, res: Response, next: NextFunction) {
+  const uid = req.user!.userId;
+const inFlight = running.get(uid);
+if (inFlight) {
+  await inFlight;
+  return res.json({ detected: 0, campaigns: [] });
+}
+let release!: () => void;
+running.set(uid, new Promise<void>((r) => (release = r)));
   try {
     const emails = await prisma.email.findMany({
       include: { iocs: true },
@@ -54,6 +63,9 @@ export async function detectCampaigns(req: Request, res: Response, next: NextFun
     return res.json({ detected: results.length, campaigns: results });
   } catch (err) {
     return next(err);
+  } finally {
+    running.delete(uid);
+    release();
   }
 }
 
