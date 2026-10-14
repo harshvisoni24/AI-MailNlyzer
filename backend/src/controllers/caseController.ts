@@ -77,6 +77,9 @@ const updateCaseSchema = z.object({
 export async function updateCase(req: Request, res: Response, next: NextFunction) {
   try {
     const data = updateCaseSchema.parse(req.body);
+    if (data.severity !== undefined || data.status !== undefined) {
+      throw new AppError("Severity and status are set by the AI analysis and cannot be changed manually.", 403);
+    }
     await assertCaseOwner(req.params.id, req.user!.userId);
     const updated = await prisma.case.update({
       where: { id: req.params.id },

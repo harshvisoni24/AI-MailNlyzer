@@ -14,11 +14,6 @@ export default function CaseDetailPage() {
 
   useEffect(() => { load(); }, [id]);
 
-  async function updateField(field: "severity" | "status", value: string) {
-    await api.patch(`/cases/${id}`, { [field]: value });
-    load();
-  }
-
   async function addNote() {
     if (!note.trim()) return;
     await api.post(`/cases/${id}/notes`, { content: note });
@@ -48,17 +43,14 @@ export default function CaseDetailPage() {
 
       <div className="panel p-5 flex gap-6">
         <div>
-          <label className="text-xs text-slate-500 block mb-1">Severity</label>
-          <select className="input" value={caseData.severity} onChange={(e) => updateField("severity", e.target.value)}>
-            {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <span className="text-xs text-slate-500 block mb-1">Severity</span>
+          <span className="text-sm font-semibold text-slate-100">{caseData.severity}</span>
         </div>
         <div>
-          <label className="text-xs text-slate-500 block mb-1">Status</label>
-          <select className="input" value={caseData.status} onChange={(e) => updateField("status", e.target.value)}>
-            {["OPEN", "ACTIVE", "ON_HOLD", "CLOSED"].map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <span className="text-xs text-slate-500 block mb-1">Status</span>
+          <span className="text-sm font-semibold text-slate-100">{caseData.status}</span>
         </div>
+        <div className="text-xs text-slate-500 self-end">Set by AI analysis</div>
       </div>
 
       <div className="panel p-5">

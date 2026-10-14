@@ -109,13 +109,28 @@ export async function getReport(req: Request, res: Response, next: NextFunction)
 
 const PAGE_L = 50;
 const PAGE_W = 495;
-const NAVY = "#1f2a44";
-const GREY = "#555555";
-const LINE = "#c8ccd4";
-const HEAD_BG = "#eef1f6";
+const PAGE_H = 841.89;
+const NAVY = "#0b1f3a";
+const BLUE = "#1f4e79";
+const GREY = "#5a6573";
+const LINE = "#c9d2dd";
+const LIGHT = "#eef2f7";
+const INK = "#1b2430";
+const SOFT = "#9db4ce";
+const RED = "#b3261e";
+const AMBER = "#c77700";
+const GREEN = "#1e7b4a";
 
 function fmtDate(d: any) {
   return d ? new Date(d).toISOString().replace("T", " ").slice(0, 19) + " UTC" : "-";
+}
+
+function toneColor(v: any): string | undefined {
+  const t = String(v ?? "").toUpperCase();
+  if (["CRITICAL", "HIGH", "MALICIOUS", "PHISHING", "FAIL", "FAILED"].includes(t)) return RED;
+  if (["MEDIUM", "SUSPICIOUS", "SOFTFAIL", "NEUTRAL"].includes(t)) return AMBER;
+  if (["LOW", "LEGITIMATE", "PASS", "VERIFIED", "SAFE"].includes(t)) return GREEN;
+  return undefined;
 }
 
 function needSpace(doc: any, h: number) {
@@ -123,41 +138,101 @@ function needSpace(doc: any, h: number) {
 }
 
 function sectionHeading(doc: any, text: string) {
-  needSpace(doc, 60);
+  needSpace(doc, 70);
   doc.moveDown(0.8);
   doc.font("Helvetica-Bold").fontSize(13).fillColor(NAVY).text(text, PAGE_L, doc.y, { width: PAGE_W });
-  const y = doc.y + 2;
-  doc.moveTo(PAGE_L, y).lineTo(PAGE_L + PAGE_W, y).strokeColor(NAVY).lineWidth(1).stroke();
-  doc.y = y + 8;
-  doc.font("Helvetica").fontSize(10).fillColor("black");
+  const y = doc.y + 3;
+  doc.moveTo(PAGE_L, y).lineTo(PAGE_L + PAGE_W, y).strokeColor(BLUE).lineWidth(1).stroke();
+  doc.y = y + 10;
+  doc.font("Helvetica").fontSize(10).fillColor(INK);
+}
+
+function subHeading(doc: any, text: string) {
+  needSpace(doc, 40);
+  doc.font("Helvetica-Bold").fontSize(10.5).fillColor(BLUE).text(text, PAGE_L, doc.y, { width: PAGE_W });
+  doc.moveDown(0.3);
+  doc.font("Helvetica").fontSize(10).fillColor(INK);
 }
 
 function paragraph(doc: any, text: string) {
-  doc.font("Helvetica").fontSize(10).fillColor("black").text(text, PAGE_L, doc.y, { width: PAGE_W, align: "justify" });
-  doc.moveDown(0.5);
+  doc.font("Helvetica").fontSize(10).fillColor(INK).text(text, PAGE_L, doc.y, { width: PAGE_W, lineGap: 2 });
+  doc.moveDown(0.6);
 }
 
-function drawTable(doc: any, headers: string[], widths: number[], rows: string[][]) {
-  const pad = 5;
-  const drawRow = (cells: string[], bold: boolean, fill?: string) => {
-    doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(9);
-    const h = Math.max(...cells.map((c, i) => doc.heightOfString(c, { width: widths[i] - pad * 2 }))) + pad * 2;
-    needSpace(doc, h);
+function listItems(doc: any, items: string[], numbered: boolean) {
+  items.forEach((t, i) => {
+    doc.font("Helvetica").fontSize(10).fillColor(INK)
+      .text(`${numbered ? i + 1 + "." : "-"} ${t}`, PAGE_L, doc.y, { width: PAGE_W, lineGap: 2 });
+    doc.moveDown(0.3);
+  });
+  doc.moveDown(0.3);
+}
+
+function statStrip(doc: any, items: { label: string; value: string; color?: string }[]) {
+  needSpace(doc, 60);
+  const y = doc.y;
+  const h = 46;
+  const w = PAGE_W / items.length;
+  doc.rect(PAGE_L, y, PAGE_W, h).fillAndStroke(LIGHT, LINE);
+  items.forEach((it, i) => {
+    const x = PAGE_L + i * w;
+    if (i > 0) doc.moveTo(x, y).lineTo(x, y + h).strokeColor(LINE).lineWidth(0.5).stroke();
+    doc.fillColor(GREY).font("Helvetica-Bold").fontSize(7)
+      .text(it.label, x + 10, y + 9, { width: w - 14, lineBreak: false });
+    doc.fillColor(it.color ?? NAVY).font("Helvetica-Bold").fontSize(14)
+      .text(it.value, x + 10, y + 21, { width: w - 14, lineBreak: false });
+  });
+  doc.y = y + h + 12;
+}
+
+function drawTable(
+  doc: any,
+  headers: string[],
+  widths: number[],
+  rows: string[][],
+  opts: { kv?: boolean; tone?: number[]; mono?: number[] } = {}
+) {
+  const pad = 6;
+  const limit = doc.page.height - 70;
+
+  const style = (mode: "head" | "body", i: number, text: string) => {
+    if (mode === "head") return { font: "Helvetica-Bold", size: 9, color: "#ffffff" };
+    if (opts.mono?.includes(i)) return { font: "Courier", size: 8, color: INK };
+    const tone = opts.tone?.includes(i) ? toneColor(text) : undefined;
+    if (tone) return { font: "Helvetica-Bold", size: 9, color: tone };
+    if (opts.kv && i === 0) return { font: "Helvetica-Bold", size: 9, color: NAVY };
+    return { font: "Helvetica", size: 9, color: INK };
+  };
+
+  const drawRow = (cells: string[], mode: "head" | "body") => {
+    const heights = cells.map((c, i) => {
+      const s = style(mode, i, c);
+      doc.font(s.font).fontSize(s.size);
+      return doc.heightOfString(c, { width: widths[i] - pad * 2 });
+    });
+    const h = Math.max(...heights) + pad * 2;
+    if (doc.y + h > limit) {
+      doc.addPage();
+      if (mode === "body") drawRow(headers, "head");
+    }
     const y = doc.y;
     let x = PAGE_L;
     cells.forEach((c, i) => {
+      const s = style(mode, i, c);
       doc.lineWidth(0.5);
-      if (fill) doc.rect(x, y, widths[i], h).fillAndStroke(fill, LINE);
-      else doc.rect(x, y, widths[i], h).strokeColor(LINE).stroke();
-      doc.fillColor("black").font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(9)
+      if (mode === "head") doc.rect(x, y, widths[i], h).fillAndStroke(NAVY, NAVY);
+      else if (opts.kv && i === 0) doc.rect(x, y, widths[i], h).fillAndStroke(LIGHT, LINE);
+      else doc.rect(x, y, widths[i], h).fillAndStroke("#ffffff", LINE);
+      doc.fillColor(s.color).font(s.font).fontSize(s.size)
         .text(c, x + pad, y + pad, { width: widths[i] - pad * 2 });
       x += widths[i];
     });
     doc.y = y + h;
   };
-  drawRow(headers, true, HEAD_BG);
-  rows.forEach((r) => drawRow(r, false));
-  doc.moveDown(0.5);
+
+  if (!opts.kv) drawRow(headers, "head");
+  rows.forEach((r) => drawRow(r, "body"));
+  doc.moveDown(0.8);
 }
 
 export async function getReportPdf(req: Request, res: Response, next: NextFunction) {
@@ -166,6 +241,8 @@ export async function getReportPdf(req: Request, res: Response, next: NextFuncti
     if (!report) throw new AppError("Report not found.", 404);
     const content = report.content as any;
     const ci = content.caseInformation ?? {};
+    const emails: any[] = content.emails ?? [];
+    const evidence: any[] = content.evidence ?? [];
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="forensic-report-${report.id}.pdf"`);
@@ -174,126 +251,246 @@ export async function getReportPdf(req: Request, res: Response, next: NextFuncti
       size: "A4",
       margin: 50,
       bufferPages: true,
-      info: { Title: `Forensic Report ${ci.caseNumber ?? ""}`, Author: "AI-MailNlyzer" },
+      info: { Title: `Forensic Report ${ci.caseNumber ?? ""}`, Author: "AI-MailNlyzer", Subject: String(ci.title ?? "") },
     });
     doc.pipe(res);
 
     // ---------- Cover page ----------
-    doc.rect(0, 0, 595.28, 120).fill(NAVY);
-    doc.fillColor("white").font("Helvetica-Bold").fontSize(22).text("AI-MailNlyzer", PAGE_L, 42, { width: PAGE_W });
-    doc.font("Helvetica").fontSize(11).text("Email Threat Detection & Forensics Platform", PAGE_L, 74, { width: PAGE_W });
+    doc.rect(0, 0, 595.28, PAGE_H).fill(NAVY);
+    doc.rect(0, 430, 595.28, 3).fill(BLUE);
+    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(13)
+      .text("AI-MAILNLYZER", PAGE_L, 60, { width: PAGE_W, lineBreak: false });
+    doc.fillColor(SOFT).font("Helvetica").fontSize(10)
+      .text("Email Threat Detection & Forensics Platform", PAGE_L, 78, { width: PAGE_W, lineBreak: false });
+    doc.fillColor(SOFT).font("Helvetica-Bold").fontSize(10)
+      .text("DIGITAL FORENSIC INVESTIGATION REPORT", PAGE_L, 230, { width: PAGE_W, lineBreak: false });
+    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(28)
+      .text("Email Forensic Analysis", PAGE_L, 250, { width: PAGE_W, lineBreak: false });
+    doc.fillColor("#ffffff").font("Helvetica").fontSize(14)
+      .text(String(ci.title ?? ""), PAGE_L, 296, { width: PAGE_W });
 
-    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(24)
-      .text("FORENSIC INVESTIGATION REPORT", PAGE_L, 200, { width: PAGE_W, align: "center" });
-    doc.moveDown(0.8);
-    doc.font("Helvetica").fontSize(13).fillColor(GREY)
-      .text(String(ci.title ?? ""), PAGE_L, doc.y, { width: PAGE_W, align: "center" });
-    doc.moveDown(0.8);
-    doc.font("Helvetica-Bold").fontSize(12).fillColor("#b91c1c")
-      .text("CONFIDENTIAL", PAGE_L, doc.y, { width: PAGE_W, align: "center" });
+    const coverRows: [string, string][] = [
+      ["CASE NUMBER", String(ci.caseNumber ?? "-")],
+      ["REPORT ID", report.id],
+      ["SEVERITY  /  STATUS", `${ci.severity ?? "-"}   |   ${ci.status ?? "-"}`],
+      ["DATE GENERATED", fmtDate(content.generatedAt)],
+      ["PREPARED BY", String(content.generatedBy ?? "-")],
+    ];
+    let cy = 465;
+    coverRows.forEach(([label, value]) => {
+      doc.fillColor(SOFT).font("Helvetica").fontSize(8).text(label, PAGE_L, cy, { width: PAGE_W, lineBreak: false });
+      doc.fillColor("#ffffff").font("Helvetica").fontSize(11).text(value, PAGE_L, cy + 12, { width: PAGE_W, lineBreak: false });
+      cy += 36;
+    });
 
-    doc.y = 360;
-    drawTable(doc, ["Field", "Details"], [150, 345], [
-      ["Case Number", String(ci.caseNumber ?? "-")],
-      ["Severity", String(ci.severity ?? "-")],
-      ["Status", String(ci.status ?? "-")],
-      ["Assigned Analyst", String(ci.assignedAnalyst ?? "-")],
+    doc.rect(PAGE_L, 750, 92, 20).fill(RED);
+    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(9)
+      .text("CONFIDENTIAL", PAGE_L, 756, { width: 92, align: "center", lineBreak: false });
+    doc.fillColor(SOFT).font("Helvetica").fontSize(8)
+      .text("Contains potentially sensitive information. Authorized recipients only.", PAGE_L + 102, 756, { width: 380, lineBreak: false });
+
+    // ---------- Document control + contents ----------
+    doc.addPage();
+    sectionHeading(doc, "Document Control");
+    drawTable(doc, ["Field", "Details"], [140, 355], [
+      ["Report Title", "Forensic Investigation Report - Email Analysis"],
       ["Report ID", report.id],
+      ["Case Number", String(ci.caseNumber ?? "-")],
+      ["Version", "1.0"],
+      ["Classification", "CONFIDENTIAL"],
       ["Generated On", fmtDate(content.generatedAt)],
       ["Generated By", String(content.generatedBy ?? "-")],
+    ], { kv: true });
+
+    subHeading(doc, "Contents");
+    drawTable(doc, ["No.", "Section"], [40, 455], [
+      ["1", "Executive Summary"],
+      ["2", "Case Information"],
+      ["3", "Scope and Methodology"],
+      ["4", "Email Findings"],
+      ["5", "Key Findings and Indicators"],
+      ["6", "Evidence Register and Chain of Custody"],
+      ["7", "Confidence and Limitations"],
+      ["8", "Conclusion and Recommendations"],
+      ["9", "Sign-off"],
     ]);
 
-    // ---------- Body ----------
+    // ---------- 1. Executive summary ----------
     doc.addPage();
-
     sectionHeading(doc, "1. Executive Summary");
     paragraph(doc, String(content.executiveSummary ?? "-"));
 
+    const maxScore = Math.max(0, ...emails.map((e: any) => Number(e.threatScore) || 0));
+    statStrip(doc, [
+      { label: "SEVERITY", value: String(ci.severity ?? "-"), color: toneColor(ci.severity) },
+      { label: "STATUS", value: String(ci.status ?? "-"), color: BLUE },
+      { label: "EMAILS ANALYZED", value: String(emails.length) },
+      { label: "EVIDENCE ITEMS", value: String(evidence.length) },
+      { label: "MAX THREAT SCORE", value: `${maxScore} / 100`, color: maxScore >= 70 ? RED : maxScore >= 40 ? AMBER : GREEN },
+    ]);
+
+    if (emails.length > 0) {
+      subHeading(doc, "Summary of Findings");
+      const points = emails.slice(0, 5).map(
+        (e: any) =>
+          `"${e.subject ?? "-"}" from ${e.from ?? "-"} was classified ${String(e.classification ?? "-")} with a threat score of ${e.threatScore ?? 0}/100.`
+      );
+      if (emails.length > 5) points.push(`...and ${emails.length - 5} more email(s). See Section 4.`);
+      listItems(doc, points, false);
+    }
+
+    // ---------- 2. Case information ----------
     sectionHeading(doc, "2. Case Information");
-    drawTable(doc, ["Field", "Details"], [150, 345], [
+    drawTable(doc, ["Field", "Details"], [140, 355], [
       ["Case Number", String(ci.caseNumber ?? "-")],
       ["Title", String(ci.title ?? "-")],
       ["Severity", String(ci.severity ?? "-")],
       ["Status", String(ci.status ?? "-")],
       ["Assigned Analyst", String(ci.assignedAnalyst ?? "-")],
       ["Case Opened", fmtDate(ci.createdAt)],
+      ["Report Generated", fmtDate(content.generatedAt)],
+    ], { kv: true });
+
+    // ---------- 3. Scope and methodology ----------
+    sectionHeading(doc, "3. Scope and Methodology");
+    paragraph(doc, `Scope: ${emails.length} email message(s) and associated headers submitted to the AI-MailNlyzer platform under case ${ci.caseNumber ?? "-"}.`);
+    drawTable(doc, ["Stage", "Description"], [110, 385], [
+      ["1. Acquisition", "Email acquired and stored as evidence; a SHA-256 digest was computed at acquisition."],
+      ["2. Header analysis", "Deterministic inspection of message headers and sender authentication results (SPF, DKIM, DMARC)."],
+      ["3. AI classification", "AI-assisted classification producing a verdict and a 0-100 threat score."],
+      ["4. Integrity check", "Evidence integrity verified against the recorded SHA-256 digest."],
     ]);
 
-    sectionHeading(doc, "3. Email Findings");
-    const emails = content.emails ?? [];
+    // ---------- 4. Email findings ----------
+    sectionHeading(doc, "4. Email Findings");
     if (emails.length === 0) {
       paragraph(doc, "No emails are attached to this case.");
     } else {
       drawTable(
         doc,
-        ["#", "Subject", "From", "Classification", "Score"],
-        [25, 150, 150, 95, 75],
+        ["#", "Subject", "From", "Verdict", "Score"],
+        [22, 130, 185, 95, 63],
         emails.map((e: any, i: number) => [
           String(i + 1),
           String(e.subject ?? "-"),
           String(e.from ?? "-"),
           String(e.classification ?? "-"),
           `${e.threatScore ?? 0}/100`,
-        ])
+        ]),
+        { tone: [3] }
       );
     }
 
-    sectionHeading(doc, "4. Key Findings");
-    const findings = (content.findings ?? []).slice(0, 15);
-    if (findings.length === 0) {
+    // ---------- 5. Key findings and indicators ----------
+    sectionHeading(doc, "5. Key Findings and Indicators");
+    const findingsAll: string[] = (content.findings ?? []).map((f: any) => (typeof f === "string" ? f : JSON.stringify(f)));
+    const authRe = /^\s*(SPF|DKIM|DMARC)\s*[=:]\s*(\w+)/i;
+    const purpose: Record<string, string> = {
+      SPF: "Confirms the sending server is authorized by the sender domain.",
+      DKIM: "Confirms the message was signed by the domain and not altered in transit.",
+      DMARC: "Confirms SPF/DKIM alignment with the visible From domain per domain policy.",
+    };
+    const authRows: string[][] = [];
+    const otherFindings: string[] = [];
+    findingsAll.forEach((f) => {
+      const m = authRe.exec(f);
+      if (m) authRows.push([m[1].toUpperCase(), m[2].toUpperCase(), purpose[m[1].toUpperCase()]]);
+      else otherFindings.push(f);
+    });
+
+    if (authRows.length > 0) {
+      subHeading(doc, "Authentication Results");
+      drawTable(doc, ["Mechanism", "Result", "Purpose"], [80, 70, 345], authRows.slice(0, 12), { tone: [1] });
+    }
+    if (otherFindings.length > 0) {
+      subHeading(doc, "Other Observations");
+      listItems(doc, otherFindings.slice(0, 15), true);
+    }
+    if (authRows.length === 0 && otherFindings.length === 0) {
       paragraph(doc, "No key findings were recorded.");
-    } else {
-      findings.forEach((f: any, i: number) => {
-        const t = typeof f === "string" ? f : JSON.stringify(f);
-        doc.font("Helvetica").fontSize(10).fillColor("black").text(`${i + 1}. ${t}`, PAGE_L, doc.y, { width: PAGE_W });
-        doc.moveDown(0.3);
-      });
     }
 
-    sectionHeading(doc, "5. Evidence Register");
-    const evidence = content.evidence ?? [];
+    const iocRows: string[][] = emails
+      .flatMap((e: any) => (e.iocs ?? []).map((i: any) => [String(i.type ?? "-"), String(i.value ?? "-")]))
+      .slice(0, 25);
+    if (iocRows.length > 0) {
+      subHeading(doc, "Indicators of Compromise");
+      drawTable(doc, ["Type", "Value"], [110, 385], iocRows);
+    }
+
+    // ---------- 6. Evidence register and chain of custody ----------
+    sectionHeading(doc, "6. Evidence Register and Chain of Custody");
+    const evId = (i: number) => `EV-${String(i + 1).padStart(3, "0")}`;
     if (evidence.length === 0) {
       paragraph(doc, "No evidence items were preserved for this case.");
     } else {
       drawTable(
         doc,
-        ["Type", "SHA-256", "Integrity", "Acquired"],
-        [60, 235, 80, 120],
-        evidence.map((ev: any) => {
+        ["ID", "Type", "SHA-256", "Integrity", "Acquired"],
+        [48, 48, 185, 74, 140],
+        evidence.map((ev: any, i: number) => {
           const h = String(ev.sha256 ?? "-");
-          return [String(ev.type ?? "-"), h.slice(0, 32) + "\n" + h.slice(32), String(ev.integrityStatus ?? "-"), fmtDate(ev.acquiredAt)];
-        })
+          return [evId(i), String(ev.type ?? "-"), h.slice(0, 32) + "\n" + h.slice(32), String(ev.integrityStatus ?? "-"), fmtDate(ev.acquiredAt)];
+        }),
+        { tone: [3], mono: [2] }
       );
+      const hashes = evidence.map((ev: any) => ev.sha256);
+      if (hashes.some((h: any, i: number) => hashes.indexOf(h) !== i)) {
+        paragraph(doc, "Note: some evidence items share an identical SHA-256 digest, indicating the same content was acquired more than once. No content difference was detected between those acquisitions.");
+      }
+
+      subHeading(doc, "Chain of Custody");
+      const custody: string[][] = evidence.map((ev: any, i: number) => [
+        fmtDate(ev.acquiredAt),
+        `Evidence acquired and hashed (${ev.type ?? "-"})`,
+        evId(i),
+      ]);
+      custody.push([fmtDate(content.generatedAt), "Forensic report generated", "-"]);
+      drawTable(doc, ["Date / Time", "Event", "Reference"], [135, 270, 90], custody);
     }
 
-    sectionHeading(doc, "6. Confidence Assessment");
+    // ---------- 7. Confidence and limitations ----------
+    sectionHeading(doc, "7. Confidence and Limitations");
     paragraph(doc, String(content.confidenceAssessment ?? "-"));
+    paragraph(doc, "AI-assisted verdicts are probabilistic and should be corroborated by an analyst before action is taken. This report covers only the emails and evidence listed above; findings may change if further material is added to the case.");
 
-    sectionHeading(doc, "7. Recommended Actions");
-    (content.recommendedActions ?? []).forEach((a: string, i: number) => {
-      doc.font("Helvetica").fontSize(10).fillColor("black").text(`${i + 1}. ${a}`, PAGE_L, doc.y, { width: PAGE_W });
-      doc.moveDown(0.3);
-    });
+    // ---------- 8. Conclusion and recommendations ----------
+    sectionHeading(doc, "8. Conclusion and Recommendations");
+    paragraph(doc, `Case ${ci.caseNumber ?? "-"} is rated ${ci.severity ?? "-"} severity and is currently ${ci.status ?? "-"}. Recommended actions:`);
+    drawTable(
+      doc,
+      ["#", "Recommended Action"],
+      [30, 465],
+      (content.recommendedActions ?? []).map((a: string, i: number) => [String(i + 1), String(a)])
+    );
 
-    sectionHeading(doc, "8. Sign-off");
-    drawTable(doc, ["Role", "Name", "Signature", "Date"], [110, 150, 135, 100], [
+    // ---------- 9. Sign-off ----------
+    needSpace(doc, 230);
+    sectionHeading(doc, "9. Sign-off");
+    drawTable(doc, ["Role", "Name", "Signature", "Date"], [90, 170, 145, 90], [
       ["Prepared by", String(content.generatedBy ?? "-"), "\n\n", fmtDate(content.generatedAt).slice(0, 10)],
       ["Reviewed by", "\n\n", "\n\n", "\n\n"],
+      ["Approved by", "\n\n", "\n\n", "\n\n"],
     ]);
-
-    doc.moveDown(0.5);
     doc.font("Helvetica-Oblique").fontSize(8).fillColor(GREY)
       .text(String(content.privacyHandling ?? ""), PAGE_L, doc.y, { width: PAGE_W });
 
-    // ---------- Footer with page numbers (skip cover) ----------
+    // ---------- Header + footer on every page except the cover ----------
     const range = doc.bufferedPageRange();
+    const total = range.count - 1;
     for (let i = 1; i < range.count; i++) {
       doc.switchToPage(i);
       doc.page.margins.bottom = 0;
+      doc.rect(0, 0, 595.28, 26).fill(NAVY);
+      doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(7.5)
+        .text("AI-MAILNLYZER  |  FORENSIC INVESTIGATION REPORT", PAGE_L, 9, { width: 245, lineBreak: false });
+      doc.text(`CONFIDENTIAL  -  ${ci.caseNumber ?? ""}`, PAGE_L + 245, 9, { width: 250, align: "right", lineBreak: false });
+
       doc.moveTo(PAGE_L, 790).lineTo(PAGE_L + PAGE_W, 790).strokeColor(LINE).lineWidth(0.5).stroke();
-      doc.font("Helvetica").fontSize(8).fillColor(GREY);
-      doc.text("AI-MailNlyzer - Confidential Forensic Report", PAGE_L, 798, { width: PAGE_W / 2, align: "left", lineBreak: false });
-      doc.text(`Page ${i} of ${range.count - 1}`, PAGE_L + PAGE_W / 2, 798, { width: PAGE_W / 2, align: "right", lineBreak: false });
+      doc.font("Helvetica").fontSize(7.5).fillColor(GREY);
+      doc.text(`Report ID: ${report.id}`, PAGE_L, 797, { width: 340, align: "left", lineBreak: false });
+      doc.text(`Page ${i} of ${total}`, PAGE_L + 340, 797, { width: PAGE_W - 340, align: "right", lineBreak: false });
+      doc.text("Handle in accordance with organizational data protection and retention policy.", PAGE_L, 810, { width: PAGE_W, align: "center", lineBreak: false });
     }
 
     doc.end();
