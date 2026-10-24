@@ -29,6 +29,17 @@ async function resolveIpv4(host: string): Promise<string[]> {
   }
   return [];
 }
+// Approximate city/region for an IP (free, no key). Returns null if it fails.
+async function getGeo(ip: string) {
+  try {
+    const r = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,regionName,city`);
+    const j: any = await r.json();
+    if (j.status !== "success") return null;
+    return { city: j.city, region: j.regionName };
+  } catch {
+    return null;
+  }
+}
 
 // AbuseIPDB check for one IP. Returns null if the lookup fails.
 async function checkAbuseIp(ip: string) {
@@ -40,10 +51,13 @@ async function checkAbuseIp(ip: string) {
     if (!r.ok) return null;
     const j: any = await r.json();
     const score = j?.data?.abuseConfidenceScore ?? 0;
+    const geo = await getGeo(ip);
     return {
       ip,
       country: j?.data?.countryCode,
       isp: j?.data?.isp,
+      city: geo?.city,
+      region: geo?.region,
       usageType: j?.data?.usageType,
       score,
       verdict: score >= 50 ? "Malicious" : score > 0 ? "Suspicious" : "Clean",
@@ -140,10 +154,13 @@ export async function lookupThreatIntel(req: Request, res: Response, next: NextF
       const j: any = await r.json();
       const score = j?.data?.abuseConfidenceScore ?? 0;
       if (!r.ok) throw new AppError("AbuseIPDB lookup failed (" + r.status + "). Check the API key.", 502);
+      const geo = await getGeo(value);
       result = {
         source: "ABUSEIPDB",
         country: j?.data?.countryCode,
         isp: j?.data?.isp,
+        city: geo?.city,
+        region: geo?.region,
         usageType: j?.data?.usageType,
         status: "LIVE",
         type,
