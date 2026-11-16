@@ -1,0 +1,1451 @@
+diff --git a/backend/src/controllers/dashboardController.ts b/backend/src/controllers/dashboardController.ts
+index 678b849..d3ec18d 100644
+--- a/backend/src/controllers/dashboardController.ts
++++ b/backend/src/controllers/dashboardController.ts
+@@ -22,11 +22,33 @@ export async function getDashboardSummary(req: Request, res: Response, next: Nex
+       where: { ownerId },
+       orderBy: { createdAt: "desc" },
+       take: 5,
+-      select: { id: true, subject: true, threatClassification: true, threatScore: true, createdAt: true },
++      select: { id: true, subject: true, fromAddress: true, threatClassification: true, threatScore: true, createdAt: true },
+     });
+ 
+     const recentAlerts = await prisma.alert.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" }, take: 5 });
+ 
++    // Last 7 days (oldest -> newest) for the Threat Analytics chart
++    const since = new Date();
++    since.setHours(0, 0, 0, 0);
++    since.setDate(since.getDate() - 6);
++    const weekEmails = await prisma.email.findMany({
++      where: { ownerId, createdAt: { gte: since } },
++      select: { createdAt: true, threatScore: true },
++    });
++    const weeklyTrend = Array.from({ length: 7 }, (_, i) => {
++      const day = new Date(since);
++      day.setDate(since.getDate() + i);
++      const key = day.toDateString();
++      const rows = weekEmails.filter((e: any) => new Date(e.createdAt).toDateString() === key);
++      return {
++        label: day.toLocaleDateString("en-US", { weekday: "short" }),
++        total: rows.length,
++        malicious: rows.filter((e: any) => (e.threatScore ?? 0) >= 70).length,
++        suspicious: rows.filter((e: any) => (e.threatScore ?? 0) >= 40 && (e.threatScore ?? 0) < 70).length,
++      };
++    });
++    const unreadAlerts = await prisma.alert.count({ where: { ownerId, isRead: false } });
++
+     const dbOk = await checkDatabaseConnection();
+     const aiOk = await checkAiServiceHealth();
+ 
+@@ -35,6 +57,8 @@ export async function getDashboardSummary(req: Request, res: Response, next: Nex
+       threatCategories: byClassification.map((b: any) => ({ classification: b.threatClassification, count: b._count._all })),
+       recentInvestigations,
+       recentAlerts,
++      weeklyTrend,
++      unreadAlerts,
+       systemHealth: { database: dbOk, aiService: aiOk },
+     });
+   } catch (err) {
+diff --git a/frontend/src/index.css b/frontend/src/index.css
+index f8eb82c..9051922 100644
+--- a/frontend/src/index.css
++++ b/frontend/src/index.css
+@@ -7,12 +7,27 @@ html, body, #root {
+ }
+ 
+ body {
+-  background: radial-gradient(circle at top left, #0f1a24 0%, #0a0e14 60%);
++  background:
++    radial-gradient(1200px 500px at 15% -10%, rgba(14, 90, 200, 0.22), transparent 60%),
++    radial-gradient(900px 500px at 100% 100%, rgba(10, 60, 150, 0.18), transparent 60%),
++    #040a18;
++  background-attachment: fixed;
+ }
+ 
+ @layer components {
+   .panel {
+-    @apply bg-forensic-panel border border-forensic-border rounded-lg;
++    @apply border border-forensic-border rounded-xl;
++    background: linear-gradient(160deg, rgba(12, 30, 62, 0.85) 0%, rgba(6, 16, 36, 0.92) 100%);
++    box-shadow: inset 0 1px 0 rgba(120, 190, 255, 0.06), 0 8px 30px -12px rgba(0, 0, 0, 0.6);
++  }
++  .panel-title {
++    @apply flex items-center gap-2 text-[15px] font-semibold text-slate-100;
++  }
++  .top-link {
++    @apply flex items-center gap-1.5 px-3 py-2 rounded-full text-[13px] text-slate-300 hover:text-white hover:bg-white/5 transition whitespace-nowrap;
++  }
++  .top-link.active {
++    @apply text-white bg-sky-500/20 border border-sky-400/40 shadow-glow;
+   }
+   .badge {
+     @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium tracking-wide;
+@@ -23,13 +38,16 @@ body {
+   .badge-low { @apply bg-green-500/15 text-green-400 border border-green-500/30; }
+   .badge-neutral { @apply bg-slate-500/15 text-slate-400 border border-slate-500/30; }
+   .btn-primary {
+-    @apply bg-forensic-accent text-forensic-bg font-semibold px-4 py-2 rounded-md hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed;
++    @apply inline-flex items-center justify-center gap-2 text-white font-semibold px-4 py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed;
++    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
++    box-shadow: 0 0 18px -4px rgba(56, 189, 248, 0.6);
+   }
++  .btn-primary:hover:not(:disabled) { filter: brightness(1.12); }
+   .btn-secondary {
+-    @apply bg-transparent border border-forensic-border text-slate-300 px-4 py-2 rounded-md hover:border-forensic-accent hover:text-forensic-accent transition;
++    @apply inline-flex items-center justify-center gap-2 bg-[#0a1a38]/70 border border-sky-500/30 text-slate-200 px-4 py-2 rounded-lg hover:border-sky-400 hover:text-white hover:shadow-glow transition;
+   }
+   .input {
+-    @apply w-full bg-forensic-bg border border-forensic-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-forensic-accent;
++    @apply w-full bg-[#0a1a38]/80 border border-sky-500/25 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400/60;
+   }
+   .nav-link {
+     @apply flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-400 hover:text-slate-100 hover:bg-white/5 transition;
+@@ -38,3 +56,14 @@ body {
+     @apply text-forensic-accent bg-forensic-accent/10;
+   }
+ }
++
++/* ---------- global polish ---------- */
++::selection { background: rgba(56, 189, 248, 0.35); }
++* { scrollbar-width: thin; scrollbar-color: #1d3a6b transparent; }
++.panel table thead { background: rgba(56, 189, 248, 0.07); }
++.panel table tbody tr { transition: background 0.15s; }
++.panel table tbody tr:hover { background: rgba(56, 189, 248, 0.06); }
++select.input option { background: #081226; color: #e2e8f0; }
++.badge { @apply rounded-full px-2.5; }
++.react-flow__controls-button { background: #081226; border-bottom: 1px solid #16315c; fill: #cbd5e1; }
++.react-flow__controls-button:hover { background: #0e2147; }
+diff --git a/frontend/src/layouts/AppLayout.tsx b/frontend/src/layouts/AppLayout.tsx
+index 95ad967..1040217 100644
+--- a/frontend/src/layouts/AppLayout.tsx
++++ b/frontend/src/layouts/AppLayout.tsx
+@@ -1,11 +1,11 @@
+-import { NavLink, Outlet, useNavigate } from "react-router-dom";
++import { useEffect, useRef, useState } from "react";
++import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+ import {
+   LayoutDashboard,
+   Upload,
+   FileSearch,
+   Network,
+   Globe2,
+-  MapPin,
+   ShieldAlert,
+   Radar,
+   FolderKanban,
+@@ -17,99 +17,224 @@ import {
+   Settings,
+   Users,
+   LogOut,
++  Search,
++  ChevronDown,
++  Landmark,
++  Microscope,
++  Shield,
+ } from "lucide-react";
+ import { useAuth } from "../contexts/AuthContext";
++import { api } from "../lib/api";
+ 
+-const NAV_GROUPS = [
+-  {
+-    label: null,
+-    items: [{ to: "/", label: "Dashboard", icon: LayoutDashboard, end: true }],
+-  },
+-  {
+-    label: "Investigate",
+-    items: [
+-      { to: "/investigate/upload", label: "Upload Email", icon: Upload },
+-      { to: "/investigate/emails", label: "All Emails", icon: FileSearch },
+-      { to: "/investigate/threat-graph", label: "Threat Graph", icon: Network },
+-    ],
+-  },
+-  {
+-    label: null,
+-    items: [
+-      { to: "/threat-intelligence", label: "Threat Intelligence", icon: Radar },
+-      { to: "/campaigns", label: "Campaigns", icon: Globe2 },
+-      { to: "/cases", label: "Cases", icon: FolderKanban },
+-      { to: "/evidence", label: "Evidence Vault", icon: Archive },
+-      { to: "/reports", label: "Forensic Reports", icon: FileText },
+-      { to: "/alerts", label: "Alerts", icon: Bell },
+-      { to: "/copilot", label: "Forensic Copilot", icon: Bot },
+-    ],
+-  },
+-  {
+-    label: "System",
+-    items: [
+-      { to: "/audit", label: "Audit Log", icon: History },
+-      { to: "/admin/users", label: "Administration", icon: Users },
+-      { to: "/settings", label: "Settings", icon: Settings },
+-    ],
+-  },
++type Item = { to: string; label: string; icon: any };
++
++const THREAT_INTEL: Item[] = [
++  { to: "/threat-intelligence", label: "Threat Intelligence", icon: Radar },
++  { to: "/campaigns", label: "Campaigns", icon: Globe2 },
++  { to: "/investigate/threat-graph", label: "Threat Graph", icon: Network },
++];
++const INVESTIGATIONS: Item[] = [
++  { to: "/investigate/emails", label: "All Emails", icon: FileSearch },
++  { to: "/cases", label: "Cases", icon: FolderKanban },
++  { to: "/evidence", label: "Evidence Vault", icon: Archive },
++  { to: "/copilot", label: "Forensic Copilot", icon: Bot },
++];
++const REPORTS: Item[] = [{ to: "/reports", label: "Forensic Reports", icon: FileText }];
++const MORE: Item[] = [
++  { to: "/alerts", label: "Alerts", icon: Bell },
++  { to: "/audit", label: "Audit Log", icon: History },
++  { to: "/admin/users", label: "Administration", icon: Users },
++  { to: "/settings", label: "Settings", icon: Settings },
+ ];
+ 
++function Dropdown({ label, icon: Icon, items }: { label: string; icon: any; items: Item[] }) {
++  const [open, setOpen] = useState(false);
++  const ref = useRef<HTMLDivElement>(null);
++  const location = useLocation();
++  const active = items.some((i) => location.pathname.startsWith(i.to));
++
++  useEffect(() => setOpen(false), [location.pathname]);
++  useEffect(() => {
++    const onDown = (e: MouseEvent) => {
++      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
++    };
++    document.addEventListener("mousedown", onDown);
++    return () => document.removeEventListener("mousedown", onDown);
++  }, []);
++
++  return (
++    <div className="relative" ref={ref}>
++      <button onClick={() => setOpen((o) => !o)} className={`top-link ${active ? "active" : ""}`}>
++        <Icon size={15} />
++        {label}
++        <ChevronDown size={13} className={`transition ${open ? "rotate-180" : ""}`} />
++      </button>
++      {open && (
++        <div className="absolute left-0 top-full mt-2 min-w-[210px] panel p-1.5 z-50 shadow-glow">
++          {items.map((i) => (
++            <NavLink
++              key={i.to}
++              to={i.to}
++              className={({ isActive }) =>
++                `flex items-center gap-2 px-3 py-2 rounded-md text-sm transition ${
++                  isActive ? "bg-sky-500/20 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
++                }`
++              }
++            >
++              <i.icon size={15} />
++              {i.label}
++            </NavLink>
++          ))}
++        </div>
++      )}
++    </div>
++  );
++}
++
+ export default function AppLayout() {
+   const { user, logout } = useAuth();
+   const navigate = useNavigate();
++  const location = useLocation();
++  const [query, setQuery] = useState("");
++  const [unread, setUnread] = useState(0);
++  const [menuOpen, setMenuOpen] = useState(false);
++  const menuRef = useRef<HTMLDivElement>(null);
++
++  useEffect(() => {
++    api
++      .get("/alerts")
++      .then((res) => setUnread((res.data as { isRead: boolean }[]).filter((a) => !a.isRead).length))
++      .catch(() => setUnread(0));
++  }, [location.pathname]);
++
++  useEffect(() => {
++    const onDown = (e: MouseEvent) => {
++      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
++    };
++    document.addEventListener("mousedown", onDown);
++    return () => document.removeEventListener("mousedown", onDown);
++  }, []);
+ 
+   async function handleLogout() {
+     await logout();
+     navigate("/login");
+   }
+ 
++  function handleSearch(e: React.FormEvent) {
++    e.preventDefault();
++    const q = query.trim();
++    if (q) navigate(`/investigate/emails?q=${encodeURIComponent(q)}`);
++  }
++
++  const name = user?.fullName ?? user?.email ?? "User";
++  const initials = name
++    .split(/[\s@]+/)
++    .filter(Boolean)
++    .slice(0, 2)
++    .map((w) => w[0]?.toUpperCase())
++    .join("");
++
+   return (
+-    <div className="flex h-screen overflow-hidden">
+-      <aside className="w-64 shrink-0 border-r border-forensic-border bg-forensic-panel flex flex-col">
+-        <div className="px-4 py-5 border-b border-forensic-border">
+-          <div className="flex items-center gap-2">
+-            <ShieldAlert className="text-forensic-accent" size={22} />
+-            <div>
+-              <div className="font-mono font-bold text-slate-100 tracking-wide">AI-MailNlyzer</div>
+-              <div className="text-[10px] text-slate-500 uppercase tracking-widest">Forensic Intelligence Platform</div>
++    <div className="flex flex-col h-screen overflow-hidden">
++      <header className="shrink-0 border-b border-sky-500/30 bg-[#040d1f]/90 backdrop-blur shadow-[0_1px_20px_-6px_rgba(56,189,248,0.4)] z-40">
++        <div className="flex items-center gap-4 px-5 h-[68px]">
++          <NavLink to="/" className="flex items-center gap-2.5 shrink-0">
++            <div className="relative">
++              <Shield className="text-sky-400" size={34} strokeWidth={1.6} />
++              <ShieldAlert className="absolute inset-0 m-auto text-sky-300" size={15} />
+             </div>
+-          </div>
+-        </div>
+-        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+-          {NAV_GROUPS.map((group, i) => (
+-            <div key={i}>
+-              {group.label && (
+-                <div className="px-3 text-[10px] uppercase tracking-widest text-slate-600 mb-1">{group.label}</div>
+-              )}
+-              <div className="space-y-0.5">
+-                {group.items.map((item) => (
+-                  <NavLink
+-                    key={item.to}
+-                    to={item.to}
+-                    end={"end" in item ? item.end : false}
+-                    className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+-                  >
+-                    <item.icon size={16} />
+-                    {item.label}
+-                  </NavLink>
+-                ))}
+-              </div>
++            <div className="leading-tight">
++              <div className="font-bold text-slate-50 text-[17px] tracking-wide">AI-MailNlyzer</div>
++              <div className="text-[10px] text-slate-400">Forensic Intelligence Platform</div>
+             </div>
+-          ))}
+-        </nav>
+-        <div className="px-4 py-3 border-t border-forensic-border">
+-          <div className="text-xs text-slate-400 mb-2">
+-            {user?.fullName ?? user?.email} <span className="text-slate-600">·</span> {user?.role}
++          </NavLink>
++
++          <nav className="flex items-center gap-1 ml-4">
++            <NavLink to="/" end className={({ isActive }) => `top-link ${isActive ? "active" : ""}`}>
++              <LayoutDashboard size={15} /> Dashboard
++            </NavLink>
++            <NavLink to="/investigate/upload" className={({ isActive }) => `top-link ${isActive ? "active" : ""}`}>
++              <Upload size={15} /> Upload Email
++            </NavLink>
++            <Dropdown label="Threat Intelligence" icon={Radar} items={THREAT_INTEL} />
++            <Dropdown label="Investigations" icon={Microscope} items={INVESTIGATIONS} />
++            <Dropdown label="Reports" icon={FileText} items={REPORTS} />
++            <Dropdown label="More" icon={Settings} items={MORE} />
++          </nav>
++
++          <form onSubmit={handleSearch} className="ml-auto relative w-[320px] max-w-[28vw]">
++            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
++            <input
++              value={query}
++              onChange={(e) => setQuery(e.target.value)}
++              placeholder="Search emails, domains, IPs..."
++              className="w-full rounded-full bg-[#0a1a38]/80 border border-sky-500/30 pl-9 pr-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-sky-400"
++            />
++          </form>
++
++          <div className="h-8 w-px bg-sky-500/20" />
++
++          <NavLink to="/alerts" className="relative p-2 rounded-full hover:bg-white/5">
++            <Bell size={20} className="text-sky-300" />
++            {unread > 0 && (
++              <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
++                {unread > 99 ? "99+" : unread}
++              </span>
++            )}
++          </NavLink>
++
++          <div className="relative" ref={menuRef}>
++            <button onClick={() => setMenuOpen((o) => !o)} className="flex items-center gap-2.5 pl-1">
++              <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center text-sm font-bold text-white ring-2 ring-sky-400/40">
++                {initials}
++                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-[#040d1f]" />
++              </div>
++              <div className="text-left leading-tight hidden xl:block">
++                <div className="text-sm font-semibold text-slate-100">{name}</div>
++                <div className="text-[11px] text-slate-400 capitalize">{user?.role?.toLowerCase()}</div>
++              </div>
++              <ChevronDown size={14} className="text-slate-400" />
++            </button>
++            {menuOpen && (
++              <div className="absolute right-0 top-full mt-2 w-44 panel p-1.5 z-50">
++                <NavLink to="/settings" className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-white/5">
++                  <Settings size={15} /> Settings
++                </NavLink>
++                <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-white/5">
++                  <LogOut size={15} /> Sign out
++                </button>
++              </div>
++            )}
+           </div>
+-          <button onClick={handleLogout} className="nav-link w-full text-left">
+-            <LogOut size={16} /> Sign out
+-          </button>
+         </div>
+-      </aside>
++      </header>
++
+       <main className="flex-1 overflow-y-auto">
+         <Outlet />
+       </main>
++
++      <footer className="shrink-0 border-t border-sky-500/20 bg-[#040d1f]/90 px-5 h-[52px] flex items-center justify-between text-[11px] text-slate-400">
++        <div className="flex items-center gap-2.5">
++          <Landmark size={22} className="text-slate-300" />
++          <div className="leading-tight">
++            <div className="text-slate-200 font-medium">Ministry of Electronics &amp; Information Technology</div>
++            <div>Government of India</div>
++          </div>
++        </div>
++        <div className="hidden md:flex items-center gap-3 text-slate-300">
++          <span className="w-24 h-px bg-sky-500/30" />
++          Secure <span className="text-sky-400">•</span> Analyze <span className="text-sky-400">•</span> Investigate{" "}
++          <span className="text-sky-400">•</span> Protect
++          <span className="w-24 h-px bg-sky-500/30" />
++        </div>
++        <div className="flex items-center gap-3">
++          <span className="flex items-center gap-1.5 text-slate-200 font-medium">
++            <Shield size={14} className="text-sky-400" /> AI-MailNlyzer v1.0.0
++          </span>
++          <span className="h-5 w-px bg-sky-500/30" />
++          <span>Powered by AI • Built for a Safer Digital India</span>
++        </div>
++      </footer>
+     </div>
+   );
+ }
+diff --git a/frontend/src/pages/AdminUsersPage.tsx b/frontend/src/pages/AdminUsersPage.tsx
+index 0eb10d2..e0aae5a 100644
+--- a/frontend/src/pages/AdminUsersPage.tsx
++++ b/frontend/src/pages/AdminUsersPage.tsx
+@@ -22,8 +22,8 @@ export default function AdminUsersPage() {
+   }
+ 
+   return (
+-    <div className="p-8 max-w-4xl mx-auto space-y-6">
+-      <h1 className="text-xl font-semibold text-slate-100">Administration — Users & Roles</h1>
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
++      <h1 className="text-2xl font-bold text-white">Administration — Users & Roles</h1>
+       <div className="panel divide-y divide-forensic-border">
+         {users.map((u) => (
+           <div key={u.id} className="p-4 flex items-center justify-between">
+diff --git a/frontend/src/pages/AlertsPage.tsx b/frontend/src/pages/AlertsPage.tsx
+index 80bb3f2..daa7691 100644
+--- a/frontend/src/pages/AlertsPage.tsx
++++ b/frontend/src/pages/AlertsPage.tsx
+@@ -16,8 +16,8 @@ export default function AlertsPage() {
+   }
+ 
+   return (
+-    <div className="p-8 max-w-4xl mx-auto space-y-6">
+-      <h1 className="text-xl font-semibold text-slate-100">Alerts</h1>
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
++      <h1 className="text-2xl font-bold text-white">Alerts</h1>
+       <div className="space-y-2">
+         {alerts.map((a) => (
+           <div key={a.id} className={`panel p-4 flex items-start justify-between ${a.isRead ? "opacity-60" : ""}`}>
+diff --git a/frontend/src/pages/AuditLogPage.tsx b/frontend/src/pages/AuditLogPage.tsx
+index de72673..f9feddb 100644
+--- a/frontend/src/pages/AuditLogPage.tsx
++++ b/frontend/src/pages/AuditLogPage.tsx
+@@ -12,8 +12,8 @@ export default function AuditLogPage() {
+   }, []);
+ 
+   return (
+-    <div className="p-8 max-w-6xl mx-auto space-y-6">
+-      <h1 className="text-xl font-semibold text-slate-100">Audit Log</h1>
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
++      <h1 className="text-2xl font-bold text-white">Audit Log</h1>
+       <div className="panel overflow-hidden">
+         <table className="w-full text-sm">
+           <thead className="bg-white/5 text-slate-400 text-xs uppercase tracking-wide">
+diff --git a/frontend/src/pages/CampaignDetailPage.tsx b/frontend/src/pages/CampaignDetailPage.tsx
+index 1bf3d93..92c1d2f 100644
+--- a/frontend/src/pages/CampaignDetailPage.tsx
++++ b/frontend/src/pages/CampaignDetailPage.tsx
+@@ -13,8 +13,8 @@ export default function CampaignDetailPage() {
+   if (!campaign) return <div className="p-8 text-slate-500">Loading campaign…</div>;
+ 
+   return (
+-    <div className="p-8 max-w-4xl mx-auto space-y-6">
+-      <h1 className="text-xl font-semibold text-slate-100">{campaign.name}</h1>
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
++      <h1 className="text-2xl font-bold text-white">{campaign.name}</h1>
+       <p className="text-sm text-slate-500">{campaign.description}</p>
+       <div className="panel p-5">
+         <h2 className="text-sm font-semibold text-slate-200 mb-3">Member Emails</h2>
+diff --git a/frontend/src/pages/CampaignsPage.tsx b/frontend/src/pages/CampaignsPage.tsx
+index 67d5f28..7fa648a 100644
+--- a/frontend/src/pages/CampaignsPage.tsx
++++ b/frontend/src/pages/CampaignsPage.tsx
+@@ -27,9 +27,9 @@ export default function CampaignsPage() {
+   }
+ 
+   return (
+-    <div className="p-8 max-w-5xl mx-auto space-y-6">
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+       <div className="flex items-center justify-between">
+-        <h1 className="text-xl font-semibold text-slate-100">Campaign Detection</h1>
++        <h1 className="text-2xl font-bold text-white">Campaign Detection</h1>
+         <button className="btn-primary" onClick={runDetection} disabled={detecting}>
+           {detecting ? "Correlating…" : "Run Campaign Detection"}
+         </button>
+diff --git a/frontend/src/pages/CaseDetailPage.tsx b/frontend/src/pages/CaseDetailPage.tsx
+index 49d04f8..4989e0b 100644
+--- a/frontend/src/pages/CaseDetailPage.tsx
++++ b/frontend/src/pages/CaseDetailPage.tsx
+@@ -30,11 +30,11 @@ export default function CaseDetailPage() {
+   if (!caseData) return <div className="p-8 text-slate-500">Loading case…</div>;
+ 
+   return (
+-    <div className="p-8 max-w-5xl mx-auto space-y-6">
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+       <div className="flex items-start justify-between">
+         <div>
+           <span className="font-mono text-xs text-slate-500">{caseData.caseNumber}</span>
+-          <h1 className="text-xl font-semibold text-slate-100">{caseData.title}</h1>
++          <h1 className="text-2xl font-bold text-white">{caseData.title}</h1>
+         </div>
+         <button className="btn-primary" onClick={generateReport}>Generate Forensic Report</button>
+       </div>
+diff --git a/frontend/src/pages/CasesListPage.tsx b/frontend/src/pages/CasesListPage.tsx
+index f7ed12d..4d67208 100644
+--- a/frontend/src/pages/CasesListPage.tsx
++++ b/frontend/src/pages/CasesListPage.tsx
+@@ -13,8 +13,8 @@ export default function CasesListPage() {
+   }, []);
+ 
+   return (
+-    <div className="p-8 max-w-6xl mx-auto space-y-6">
+-      <h1 className="text-xl font-semibold text-slate-100">Investigation Cases</h1>
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
++      <h1 className="text-2xl font-bold text-white">Investigation Cases</h1>
+       <div className="grid md:grid-cols-2 gap-4">
+         {cases.map((c) => (
+           <Link key={c.id} to={`/cases/${c.id}`} className="panel p-5 hover:border-forensic-accent transition">
+diff --git a/frontend/src/pages/CopilotPage.tsx b/frontend/src/pages/CopilotPage.tsx
+index 73e973a..610c001 100644
+--- a/frontend/src/pages/CopilotPage.tsx
++++ b/frontend/src/pages/CopilotPage.tsx
+@@ -39,10 +39,10 @@ export default function CopilotPage() {
+   }
+ 
+   return (
+-    <div className="p-8 max-w-3xl mx-auto space-y-6">
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+       <div className="flex items-center gap-2">
+         <Bot className="text-forensic-accent" size={22} />
+-        <h1 className="text-xl font-semibold text-slate-100">Forensic Copilot</h1>
++        <h1 className="text-2xl font-bold text-white">Forensic Copilot</h1>
+       </div>
+       <p className="text-sm text-slate-500">
+         Answers are grounded in real investigation data. Optionally scope the conversation to a specific email or case ID below.
+diff --git a/frontend/src/pages/DashboardPage.tsx b/frontend/src/pages/DashboardPage.tsx
+index 860bb73..b971e1c 100644
+--- a/frontend/src/pages/DashboardPage.tsx
++++ b/frontend/src/pages/DashboardPage.tsx
+@@ -1,22 +1,93 @@
+ import { useEffect, useState } from "react";
+ import { Link } from "react-router-dom";
+-import { Mail, ShieldAlert, AlertOctagon, FolderKanban, Globe2, Archive } from "lucide-react";
++import {
++  Mail,
++  ShieldAlert,
++  AlertTriangle,
++  FolderOpen,
++  BarChart3,
++  PieChart as PieIcon,
++  Zap,
++  Globe2,
++  Bell,
++  Activity,
++  ArrowRight,
++  ArrowUp,
++  ArrowDown,
++  Check,
++  Info,
++  Shield,
++} from "lucide-react";
++import {
++  Area,
++  AreaChart,
++  CartesianGrid,
++  Cell,
++  Line,
++  LineChart,
++  Pie,
++  PieChart,
++  ResponsiveContainer,
++  Tooltip,
++  XAxis,
++  YAxis,
++} from "recharts";
++import { MapContainer, TileLayer } from "react-leaflet";
++import "leaflet/dist/leaflet.css";
+ import { api } from "../lib/api";
+ import { DashboardSummary } from "../types";
+-import { ClassificationBadge, ScoreBadge } from "../components/Badges";
++import { useAuth } from "../contexts/AuthContext";
+ 
+-const METRIC_CARDS = [
+-  { key: "emailsAnalyzed", label: "Emails Analyzed", icon: Mail },
+-  { key: "threatsDetected", label: "Threats Detected", icon: ShieldAlert },
+-  { key: "criticalThreats", label: "Critical Threats", icon: AlertOctagon },
+-  { key: "activeCases", label: "Active Cases", icon: FolderKanban },
+-  { key: "activeCampaigns", label: "Active Campaigns", icon: Globe2 },
+-  { key: "evidenceItems", label: "Evidence Items", icon: Archive },
+-] as const;
++const MALICIOUS = new Set(["PHISHING", "BEC", "MALWARE_DELIVERY", "FINANCIAL_FRAUD", "CREDENTIAL_HARVESTING", "IMPERSONATION"]);
++const CLEAN = new Set(["LEGITIMATE", "LOW_RISK"]);
++
++const C = { total: "#22d3ee", malicious: "#ef4444", suspicious: "#f59e0b", clean: "#38bdf8" };
++
++function timeAgo(iso: string) {
++  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
++  if (s < 60) return "just now";
++  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
++  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
++  return `${Math.floor(s / 86400)}d ago`;
++}
++
++function level(score: number | null | undefined) {
++  if (score == null) return { label: "N/A", cls: "bg-slate-500/15 text-slate-300 border-slate-500/30", dot: "bg-slate-400" };
++  if (score >= 90) return { label: "Critical", cls: "bg-red-500/20 text-red-400 border-red-500/40", dot: "bg-red-500" };
++  if (score >= 70) return { label: "High", cls: "bg-orange-500/20 text-orange-300 border-orange-500/40", dot: "bg-sky-400" };
++  if (score >= 40) return { label: "Medium", cls: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40", dot: "bg-yellow-400" };
++  return { label: "Low", cls: "bg-green-500/20 text-green-400 border-green-500/40", dot: "bg-green-400" };
++}
++
++function Spark({ data, color, id }: { data: { v: number }[]; color: string; id: string }) {
++  return (
++    <ResponsiveContainer width="100%" height="100%">
++      <AreaChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
++        <defs>
++          <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
++            <stop offset="0%" stopColor={color} stopOpacity={0.35} />
++            <stop offset="100%" stopColor={color} stopOpacity={0} />
++          </linearGradient>
++        </defs>
++        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={2} fill={`url(#${id})`} dot={false} isAnimationActive={false} />
++      </AreaChart>
++    </ResponsiveContainer>
++  );
++}
++
++function trend(series: number[]) {
++  const half = Math.floor(series.length / 2);
++  const prev = series.slice(0, half).reduce((a, b) => a + b, 0);
++  const cur = series.slice(half).reduce((a, b) => a + b, 0);
++  if (prev === 0) return cur === 0 ? 0 : 100;
++  return Math.round(((cur - prev) / prev) * 100);
++}
+ 
+ export default function DashboardPage() {
++  const { user } = useAuth();
+   const [data, setData] = useState<DashboardSummary | null>(null);
+   const [error, setError] = useState<string | null>(null);
++  const [now, setNow] = useState(new Date());
+ 
+   useEffect(() => {
+     api
+@@ -25,86 +96,311 @@ export default function DashboardPage() {
+       .catch(() => setError("Could not load dashboard data. Check that the backend and database are running."));
+   }, []);
+ 
+-  return (
+-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+-      <div className="flex items-center justify-between">
+-        <div>
+-          <h1 className="text-xl font-semibold text-slate-100">SOC Dashboard</h1>
+-          <p className="text-sm text-slate-500">Real-time overview of email threat detection and investigations.</p>
+-        </div>
+-        <Link to="/investigate/upload" className="btn-primary">Analyze Email</Link>
+-      </div>
++  useEffect(() => {
++    const t = setInterval(() => setNow(new Date()), 1000);
++    return () => clearInterval(t);
++  }, []);
++
++  const firstName = (user?.fullName ?? user?.email ?? "Analyst").split(/[\s@]+/)[0];
++  const stamp = `${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}, ${now.toLocaleTimeString("en-GB")}`;
+ 
++  const weekly = data?.weeklyTrend ?? [];
++  const cats = data?.threatCategories ?? [];
++  const count = (pred: (c: string) => boolean) => cats.filter((c) => pred(c.classification)).reduce((a, c) => a + c.count, 0);
++  const malicious = count((c) => MALICIOUS.has(c));
++  const suspicious = count((c) => c === "SUSPICIOUS");
++  const clean = count((c) => CLEAN.has(c));
++  const distTotal = malicious + suspicious + clean;
++  const pct = (n: number) => (distTotal ? Math.round((n / distTotal) * 100) : 0);
++  const dist = [
++    { name: "Malicious", value: malicious, color: C.malicious },
++    { name: "Suspicious", value: suspicious, color: C.suspicious },
++    { name: "Clean", value: clean, color: C.clean },
++  ];
++
++  const health = data
++    ? [
++        { name: "Analysis Engine", ok: data.systemHealth.aiService },
++        { name: "Database", ok: data.systemHealth.database },
++        { name: "API Services", ok: true },
++      ]
++    : [];
++  const healthPct = health.length ? Math.round((health.filter((h) => h.ok).length / health.length) * 100) : 0;
++  const online = !!data && data.systemHealth.database;
++
++  const cards = data
++    ? [
++        { label: "Emails Analyzed", value: data.metrics.emailsAnalyzed, icon: Mail, color: C.total, series: weekly.map((w) => w.total), glow: "text-cyan-300" },
++        {
++          label: "Threats Detected",
++          value: data.metrics.threatsDetected,
++          icon: ShieldAlert,
++          color: "#3b82f6",
++          series: weekly.map((w) => w.malicious + w.suspicious),
++          glow: "text-red-400",
++        },
++        { label: "Critical Threats", value: data.metrics.criticalThreats, icon: AlertTriangle, color: C.malicious, series: weekly.map((w) => w.malicious), glow: "text-red-400" },
++        { label: "Active Cases", value: data.metrics.activeCases, icon: FolderOpen, color: "#a855f7", series: null, glow: "text-sky-300" },
++      ]
++    : [];
++
++  return (
++    <div className="p-5 max-w-[1500px] mx-auto space-y-4">
+       {error && <div className="panel p-4 text-sm text-red-400">{error}</div>}
+ 
+-      {data && (
+-        <>
+-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+-            {METRIC_CARDS.map((m) => (
+-              <div key={m.key} className="panel p-4">
+-                <m.icon className="text-forensic-accent mb-2" size={18} />
+-                <div className="text-2xl font-mono font-bold text-slate-100">{data.metrics[m.key]}</div>
+-                <div className="text-xs text-slate-500">{m.label}</div>
++      {/* Hero + metric cards */}
++      <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_2fr] gap-4">
++        <div className="panel relative overflow-hidden p-6 flex items-center gap-6 min-h-[180px]">
++          <div
++            className="absolute inset-0 opacity-40 pointer-events-none"
++            style={{
++              backgroundImage: "radial-gradient(rgba(56,189,248,0.55) 1px, transparent 1.2px)",
++              backgroundSize: "9px 9px",
++              maskImage: "radial-gradient(ellipse at 85% 30%, black 0%, transparent 60%)",
++              WebkitMaskImage: "radial-gradient(ellipse at 85% 30%, black 0%, transparent 60%)",
++            }}
++          />
++          <div className="relative shrink-0 w-28 h-28 flex items-center justify-center">
++            <div className="absolute inset-0 rounded-full bg-sky-500/20 blur-2xl" />
++            <Shield size={104} className="text-sky-400 relative drop-shadow-[0_0_16px_rgba(56,189,248,0.8)]" strokeWidth={1.4} />
++            <Mail size={38} className="absolute text-sky-200" />
++          </div>
++          <div className="relative">
++            <h1 className="text-[28px] font-bold text-white leading-tight">
++              Welcome Back, <span className="text-sky-400">{firstName}!</span>
++            </h1>
++            <p className="text-sm text-slate-300 mt-1">Here's what's happening with your security operations today.</p>
++            <div className="mt-4 flex items-center gap-3 text-sm">
++              <span className={`flex items-center gap-2 font-medium ${online ? "text-green-400" : "text-red-400"}`}>
++                <span className={`w-2.5 h-2.5 rounded-full animate-pulse-dot ${online ? "bg-green-400" : "bg-red-500"}`} />
++                System {online ? "Online" : "Offline"}
++              </span>
++              <span className="text-slate-600">|</span>
++              <span className="text-slate-300">{stamp}</span>
++            </div>
++          </div>
++        </div>
++
++        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
++          {cards.map((m, i) => {
++            const d = m.series ? trend(m.series) : null;
++            return (
++              <div key={m.label} className="panel p-4 flex flex-col justify-between">
++                <m.icon size={30} className={m.glow} strokeWidth={1.6} />
++                <div>
++                  <div className="text-[34px] font-bold text-white leading-none mt-3">{m.value}</div>
++                  <div className="text-[13px] text-slate-300 mt-1">{m.label}</div>
++                </div>
++                <div className="flex items-end justify-between mt-2 h-10">
++                  {d !== null ? (
++                    <span className={`text-xs font-medium flex items-center ${d > 0 ? "text-green-400" : d < 0 ? "text-red-400" : "text-slate-400"}`}>
++                      {d < 0 ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
++                      {d > 0 ? "+" : ""}
++                      {d}%
++                    </span>
++                  ) : (
++                    <span className="text-xs text-slate-400">{data?.metrics.activeCampaigns} campaigns</span>
++                  )}
++                  <div className="w-20 h-9">
++                    {m.series ? <Spark id={`sp${i}`} color={m.color} data={m.series.map((v) => ({ v }))} /> : null}
++                  </div>
++                </div>
+               </div>
++            );
++          })}
++        </div>
++      </div>
++
++      {/* Row 2 */}
++      <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr_1.35fr] gap-4">
++        <div className="panel p-5">
++          <div className="flex items-center justify-between mb-2">
++            <h2 className="panel-title"><BarChart3 size={18} className="text-sky-400" /> Threat Analytics</h2>
++            <span className="text-xs text-slate-300 border border-sky-500/30 rounded-md px-3 py-1.5 bg-[#0a1a38]/80">Last 7 Days</span>
++          </div>
++          <div className="flex justify-end gap-4 text-xs text-slate-300 mb-1">
++            {[["Total", C.total], ["Malicious", C.malicious], ["Suspicious", C.suspicious]].map(([n, c]) => (
++              <span key={n} className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />{n}</span>
+             ))}
+           </div>
++          <div className="h-[200px]">
++            <ResponsiveContainer width="100%" height="100%">
++              <LineChart data={weekly} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
++                <CartesianGrid stroke="rgba(120,170,255,0.08)" vertical={false} />
++                <XAxis dataKey="label" tick={{ fill: "#cbd5e1", fontSize: 12 }} axisLine={{ stroke: "#1e3a6a" }} tickLine={false} />
++                <YAxis allowDecimals={false} tick={{ fill: "#cbd5e1", fontSize: 12 }} axisLine={false} tickLine={false} />
++                <Tooltip contentStyle={{ background: "#081226", border: "1px solid #12284a", borderRadius: 8, fontSize: 12 }} />
++                <Line type="monotone" dataKey="total" stroke={C.total} strokeWidth={2.5} dot={{ r: 3.5, fill: C.total }} style={{ filter: "drop-shadow(0 0 5px #22d3ee)" }} />
++                <Line type="monotone" dataKey="malicious" stroke={C.malicious} strokeWidth={2.5} dot={{ r: 3.5, fill: C.malicious }} style={{ filter: "drop-shadow(0 0 5px #ef4444)" }} />
++                <Line type="monotone" dataKey="suspicious" stroke={C.suspicious} strokeWidth={2.5} dot={{ r: 3.5, fill: C.suspicious }} style={{ filter: "drop-shadow(0 0 5px #f59e0b)" }} />
++              </LineChart>
++            </ResponsiveContainer>
++          </div>
++        </div>
+ 
+-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+-            <div className="panel p-5">
+-              <h2 className="text-sm font-semibold text-slate-200 mb-4">Recent Investigations</h2>
+-              <div className="space-y-2">
+-                {data.recentInvestigations.length === 0 && (
+-                  <p className="text-sm text-slate-500">No emails analyzed yet. Try loading a demo investigation.</p>
+-                )}
+-                {data.recentInvestigations.map((e) => (
+-                  <Link
+-                    key={e.id}
+-                    to={`/investigate/emails/${e.id}`}
+-                    className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/5 border border-transparent hover:border-forensic-border"
++        <div className="panel p-5">
++          <h2 className="panel-title mb-2"><PieIcon size={18} className="text-sky-400" /> Threat Distribution</h2>
++          <div className="flex items-center gap-4">
++            <div className="relative w-[170px] h-[170px] shrink-0">
++              <ResponsiveContainer width="100%" height="100%">
++                <PieChart>
++                  <Pie
++                    data={distTotal ? dist : [{ name: "None", value: 1, color: "#12284a" }]}
++                    dataKey="value"
++                    innerRadius={52}
++                    outerRadius={80}
++                    paddingAngle={distTotal ? 2 : 0}
++                    stroke="none"
++                    startAngle={90}
++                    endAngle={-270}
+                   >
+-                    <div className="min-w-0">
+-                      <div className="text-sm text-slate-200 truncate">{e.subject}</div>
+-                      <div className="text-xs text-slate-500 truncate">{e.fromAddress}</div>
+-                    </div>
+-                    <div className="flex items-center gap-2 shrink-0 ml-3">
+-                      <ClassificationBadge classification={e.threatClassification} />
+-                      <ScoreBadge score={e.threatScore} />
+-                    </div>
+-                  </Link>
+-                ))}
++                    {(distTotal ? dist : [{ color: "#12284a" }]).map((d, i) => (
++                      <Cell key={i} fill={d.color} />
++                    ))}
++                  </Pie>
++                </PieChart>
++              </ResponsiveContainer>
++              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
++                <div className="text-[26px] font-bold text-white leading-none">{pct(malicious)}%</div>
++                <div className="text-xs text-red-400 mt-0.5">Malicious</div>
+               </div>
+             </div>
++            <div className="space-y-4 flex-1 text-sm">
++              {dist.map((d) => (
++                <div key={d.name} className="flex items-center justify-between">
++                  <span className="flex items-center gap-2 text-slate-200">
++                    <span className="w-3.5 h-3.5 rounded-full" style={{ background: d.color, boxShadow: `0 0 8px ${d.color}` }} />
++                    {d.name}
++                  </span>
++                  <span className="text-slate-300">{pct(d.value)}%</span>
++                </div>
++              ))}
++            </div>
++          </div>
++        </div>
+ 
+-            <div className="panel p-5">
+-              <h2 className="text-sm font-semibold text-slate-200 mb-4">Recent Alerts</h2>
+-              <div className="space-y-2">
+-                {data.recentAlerts.length === 0 && <p className="text-sm text-slate-500">No alerts yet.</p>}
+-                {data.recentAlerts.map((a) => (
+-                  <div key={a.id} className="px-3 py-2 rounded-md border border-forensic-border">
+-                    <div className="flex items-center justify-between">
+-                      <span className={`badge badge-${a.severity.toLowerCase()}`}>{a.severity}</span>
+-                      <span className="text-[11px] text-slate-500">{new Date(a.createdAt).toLocaleString()}</span>
+-                    </div>
+-                    <div className="text-sm text-slate-200 mt-1">{a.title}</div>
++        <div className="panel p-5">
++          <div className="flex items-center justify-between mb-2">
++            <h2 className="panel-title"><Zap size={18} className="text-sky-400" /> Recent Investigations</h2>
++            <Link to="/investigate/emails" className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">View All <ArrowRight size={12} /></Link>
++          </div>
++          <div className="divide-y divide-sky-500/10">
++            {data && data.recentInvestigations.length === 0 && (
++              <p className="text-sm text-slate-500 py-6">No emails analyzed yet. Try loading a demo investigation.</p>
++            )}
++            {data?.recentInvestigations.slice(0, 4).map((e) => {
++              const l = level(e.threatScore);
++              return (
++                <Link key={e.id} to={`/investigate/emails/${e.id}`} className="flex items-center gap-3 py-3 hover:bg-white/5 rounded-md px-1 -mx-1">
++                  <span className={`w-2 h-2 rounded-full shrink-0 ${l.dot}`} />
++                  <Mail size={20} className="text-slate-300 shrink-0" />
++                  <div className="min-w-0 flex-1">
++                    <div className="text-sm font-medium text-slate-100 truncate">{e.subject}</div>
++                    <div className="text-xs text-slate-400 truncate">From: {e.fromAddress}</div>
+                   </div>
+-                ))}
+-              </div>
++                  <span className={`text-[11px] font-semibold px-3 py-1 rounded-full border ${l.cls}`}>{l.label}</span>
++                  <span className="text-xs text-slate-400 w-14 text-right shrink-0">{timeAgo(e.createdAt)}</span>
++                </Link>
++              );
++            })}
++          </div>
++        </div>
++      </div>
++
++      {/* Row 3 */}
++      <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_1.15fr_1.15fr] gap-4">
++        <div className="panel p-5">
++          <div className="flex items-center justify-between mb-3">
++            <h2 className="panel-title"><Globe2 size={18} className="text-sky-400" /> Global Threat Map</h2>
++            <span className="text-xs text-green-400 flex items-center gap-1.5 border border-green-500/30 rounded-full px-3 py-1 bg-green-500/10">
++              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse-dot" /> Live
++            </span>
++          </div>
++          <div className="flex gap-4">
++            <div className="flex-1 h-[150px] rounded-lg overflow-hidden border border-sky-500/20">
++              <MapContainer center={[22, 20]} zoom={1} minZoom={1} scrollWheelZoom={false} zoomControl={false} attributionControl={false} style={{ height: "100%", width: "100%", background: "#050c1c" }}>
++                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
++              </MapContainer>
++            </div>
++            <div className="w-[130px] space-y-3 text-xs">
++              {[
++                ["Active Campaigns", data?.metrics.activeCampaigns ?? 0, "bg-red-500"],
++                ["Suspicious Emails", suspicious, "bg-sky-400"],
++                ["Evidence Items", data?.metrics.evidenceItems ?? 0, "bg-purple-500"],
++              ].map(([n, v, c]) => (
++                <div key={n as string}>
++                  <div className="flex items-center gap-2 text-slate-300"><span className={`w-2 h-2 rounded-full ${c}`} />{n}</div>
++                  <div className="text-xl font-semibold text-white ml-4">{v}</div>
++                </div>
++              ))}
+             </div>
+           </div>
++        </div>
+ 
+-          <div className="panel p-5">
+-            <h2 className="text-sm font-semibold text-slate-200 mb-2">System Health</h2>
+-            <div className="flex gap-6 text-sm">
+-              <span className={data.systemHealth.database ? "text-green-400" : "text-red-400"}>
+-                ● PostgreSQL {data.systemHealth.database ? "connected" : "unreachable"}
+-              </span>
+-              <span className={data.systemHealth.aiService ? "text-green-400" : "text-red-400"}>
+-                ● AI Service {data.systemHealth.aiService ? "connected" : "unreachable (rule-engine fallback active)"}
+-              </span>
++        <div className="panel p-5">
++          <div className="flex items-center justify-between mb-2">
++            <h2 className="panel-title"><Bell size={18} className="text-amber-400" /> Critical Alerts</h2>
++            <Link to="/alerts" className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">View All <ArrowRight size={12} /></Link>
++          </div>
++          <div className="divide-y divide-sky-500/10">
++            {data && data.recentAlerts.length === 0 && <p className="text-sm text-slate-500 py-6">No alerts yet.</p>}
++            {data?.recentAlerts.slice(0, 3).map((a) => {
++              const sev = a.severity;
++              const Icon = sev === "CRITICAL" ? AlertTriangle : sev === "HIGH" || sev === "MEDIUM" ? AlertTriangle : Info;
++              const ring =
++                sev === "CRITICAL" ? "bg-red-500" : sev === "HIGH" || sev === "MEDIUM" ? "bg-amber-500" : "bg-sky-500";
++              return (
++                <div key={a.id} className="flex items-center gap-3 py-3">
++                  <span className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${ring}`}>
++                    <Icon size={17} className="text-white" />
++                  </span>
++                  <div className="min-w-0 flex-1">
++                    <div className="text-sm font-medium text-slate-100 truncate">{a.title}</div>
++                    {a.description && <div className="text-xs text-slate-400 truncate">{a.description}</div>}
++                  </div>
++                  <span className="text-xs text-slate-400 shrink-0">{timeAgo(a.createdAt)}</span>
++                </div>
++              );
++            })}
++          </div>
++        </div>
++
++        <div className="panel p-5">
++          <h2 className="panel-title mb-3"><Activity size={18} className="text-sky-400" /> System Health</h2>
++          <div className="flex items-center gap-5">
++            <div className="relative w-[130px] h-[130px] shrink-0">
++              <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
++                <circle cx="60" cy="60" r="50" fill="none" stroke="#12284a" strokeWidth="9" />
++                <circle
++                  cx="60" cy="60" r="50" fill="none" stroke="#22c55e" strokeWidth="9" strokeLinecap="round"
++                  strokeDasharray={`${(healthPct / 100) * 314} 314`}
++                  style={{ filter: "drop-shadow(0 0 6px #22c55e)" }}
++                />
++              </svg>
++              <div className="absolute inset-0 flex flex-col items-center justify-center">
++                <Check size={22} className="text-green-400" />
++                <div className="text-2xl font-bold text-white leading-none">{healthPct}%</div>
++              </div>
++            </div>
++            <div className="flex-1">
++              <div className={`text-lg font-semibold ${healthPct === 100 ? "text-green-400" : "text-amber-400"}`}>
++                {healthPct === 100 ? "Operational" : "Degraded"}
++              </div>
++              <div className="mt-2 space-y-2">
++                {health.map((h) => (
++                  <div key={h.name} className="flex items-start gap-2 text-xs">
++                    <span className={`w-2.5 h-2.5 rounded-full mt-1 ${h.ok ? "bg-green-400" : "bg-red-500"}`} />
++                    <div className="leading-tight">
++                      <div className="text-slate-100">{h.name}</div>
++                      <div className={h.ok ? "text-green-400" : "text-red-400"}>{h.ok ? "Healthy" : "Unreachable"}</div>
++                    </div>
++                  </div>
++                ))}
++              </div>
+             </div>
+           </div>
+-        </>
+-      )}
++        </div>
++      </div>
+     </div>
+   );
+ }
+diff --git a/frontend/src/pages/EmailDetailPage.tsx b/frontend/src/pages/EmailDetailPage.tsx
+index 4847501..57a0193 100644
+--- a/frontend/src/pages/EmailDetailPage.tsx
++++ b/frontend/src/pages/EmailDetailPage.tsx
+@@ -97,10 +97,10 @@ export default function EmailDetailPage() {
+     : "Rule engine + ML model";
+ 
+   return (
+-    <div className="p-8 max-w-5xl mx-auto space-y-6">
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+       <div className="flex items-start justify-between gap-4">
+         <div>
+-          <h1 className="text-xl font-semibold text-slate-100">{email.subject}</h1>
++          <h1 className="text-2xl font-bold text-white">{email.subject}</h1>
+           <p className="text-sm text-slate-500">From {email.fromAddress} · Sent {new Date(email.sentDate ?? email.createdAt).toLocaleString()}</p>
+           <p className="text-xs text-slate-600">Analyzed {new Date(email.createdAt).toLocaleString()}</p>
+         </div>
+diff --git a/frontend/src/pages/EmailsListPage.tsx b/frontend/src/pages/EmailsListPage.tsx
+index 057b2c1..1fdc8c5 100644
+--- a/frontend/src/pages/EmailsListPage.tsx
++++ b/frontend/src/pages/EmailsListPage.tsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useState } from "react";
+-import { Link } from "react-router-dom";
++import { Link, useSearchParams } from "react-router-dom";
+ import { api } from "../lib/api";
+ import { EmailSummary } from "../types";
+ import { ClassificationBadge, ScoreBadge } from "../components/Badges";
+@@ -7,6 +7,11 @@ import { ClassificationBadge, ScoreBadge } from "../components/Badges";
+ export default function EmailsListPage() {
+   const [emails, setEmails] = useState<EmailSummary[]>([]);
+   const [loading, setLoading] = useState(true);
++  const [params] = useSearchParams();
++  const q = (params.get("q") ?? "").trim().toLowerCase();
++  const visible = q
++    ? emails.filter((e) => `${e.subject} ${e.fromAddress}`.toLowerCase().includes(q))
++    : emails;
+ 
+   useEffect(() => {
+     api
+@@ -16,9 +21,9 @@ export default function EmailsListPage() {
+   }, []);
+ 
+   return (
+-    <div className="p-8 max-w-6xl mx-auto space-y-6">
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+       <div className="flex items-center justify-between">
+-        <h1 className="text-xl font-semibold text-slate-100">Analyzed Emails</h1>
++        <h1 className="text-2xl font-bold text-white">Analyzed Emails</h1>
+         <Link to="/investigate/upload" className="btn-primary">Analyze Email</Link>
+       </div>
+ 
+@@ -34,10 +39,10 @@ export default function EmailsListPage() {
+             </tr>
+           </thead>
+           <tbody>
+-            {!loading && emails.length === 0 && (
++            {!loading && visible.length === 0 && (
+               <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">No emails analyzed yet.</td></tr>
+             )}
+-            {emails.map((e) => (
++            {visible.map((e) => (
+               <tr key={e.id} className="border-t border-forensic-border hover:bg-white/5">
+                 <td className="px-4 py-3">
+                   <Link to={`/investigate/emails/${e.id}`} className="text-slate-200 hover:text-forensic-accent">{e.subject}</Link>
+diff --git a/frontend/src/pages/EvidenceVaultPage.tsx b/frontend/src/pages/EvidenceVaultPage.tsx
+index cd4aa7a..7310173 100644
+--- a/frontend/src/pages/EvidenceVaultPage.tsx
++++ b/frontend/src/pages/EvidenceVaultPage.tsx
+@@ -21,9 +21,9 @@ export default function EvidenceVaultPage() {
+   }
+ 
+   return (
+-    <div className="p-8 max-w-6xl mx-auto space-y-6">
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+       <div className="flex items-center justify-between">
+-        <h1 className="text-xl font-semibold text-slate-100">Evidence Vault</h1>
++        <h1 className="text-2xl font-bold text-white">Evidence Vault</h1>
+         <button className="btn-secondary" onClick={verifyLedger}>Verify Integrity Ledger</button>
+       </div>
+ 
+diff --git a/frontend/src/pages/LandingPage.tsx b/frontend/src/pages/LandingPage.tsx
+index b4b34b0..ba5c4e7 100644
+--- a/frontend/src/pages/LandingPage.tsx
++++ b/frontend/src/pages/LandingPage.tsx
+@@ -1,5 +1,5 @@
+ import { Link } from "react-router-dom";
+-import { ShieldAlert, Radar, MapPin, Network, Globe2, Archive, FileText } from "lucide-react";
++import { ShieldAlert, Shield, MapPin, Network, Globe2, Archive, FileText, Landmark, ArrowRight } from "lucide-react";
+ 
+ const FEATURES = [
+   { icon: ShieldAlert, label: "AI Detection", desc: "Hybrid rule engine + AI explanation, never AI-only verdicts." },
+@@ -12,34 +12,74 @@ const FEATURES = [
+ 
+ export default function LandingPage() {
+   return (
+-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-20 text-center">
+-      <div className="flex items-center gap-2 mb-6">
+-        <ShieldAlert className="text-forensic-accent" size={28} />
+-        <span className="font-mono text-sm text-slate-400 tracking-widest uppercase">AICTE · Cyber Security Cell</span>
+-      </div>
+-      <h1 className="font-mono text-4xl md:text-5xl font-bold text-slate-100 mb-3">AI-MailNlyzer</h1>
+-      <p className="text-lg text-slate-400 max-w-xl mb-2">From Suspicious Email to Actionable Intelligence.</p>
+-      <p className="text-sm text-forensic-accent tracking-widest uppercase mb-10">Detect · Trace · Correlate · Investigate</p>
++    <div className="min-h-screen flex flex-col">
++      <header className="flex items-center justify-between px-6 h-[68px] border-b border-sky-500/30 bg-[#040d1f]/90 shadow-[0_1px_20px_-6px_rgba(56,189,248,0.4)]">
++        <div className="flex items-center gap-2.5">
++          <div className="relative">
++            <Shield className="text-sky-400" size={34} strokeWidth={1.6} />
++            <ShieldAlert className="absolute inset-0 m-auto text-sky-300" size={15} />
++          </div>
++          <div className="leading-tight text-left">
++            <div className="font-bold text-slate-50 text-[17px] tracking-wide">AI-MailNlyzer</div>
++            <div className="text-[10px] text-slate-400">Forensic Intelligence Platform</div>
++          </div>
++        </div>
++        <Link to="/login" className="btn-secondary">Sign in</Link>
++      </header>
+ 
+-      <div className="flex gap-4 mb-16">
+-        <Link to="/login" className="btn-primary">Analyze Email</Link>
+-        <Link to="/login" className="btn-secondary">View Demo Investigation</Link>
+-      </div>
++      <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center relative overflow-hidden">
++        <div
++          className="absolute inset-0 opacity-30 pointer-events-none"
++          style={{
++            backgroundImage: "radial-gradient(rgba(56,189,248,0.55) 1px, transparent 1.2px)",
++            backgroundSize: "10px 10px",
++            maskImage: "radial-gradient(ellipse at 50% 20%, black 0%, transparent 65%)",
++            WebkitMaskImage: "radial-gradient(ellipse at 50% 20%, black 0%, transparent 65%)",
++          }}
++        />
++        <div className="relative w-28 h-28 flex items-center justify-center mb-6">
++          <div className="absolute inset-0 rounded-full bg-sky-500/25 blur-2xl" />
++          <Shield size={104} className="text-sky-400 relative drop-shadow-[0_0_16px_rgba(56,189,248,0.8)]" strokeWidth={1.4} />
++          <ShieldAlert size={36} className="absolute text-sky-200" />
++        </div>
++        <p className="relative font-mono text-xs text-slate-400 tracking-widest uppercase mb-3">AICTE · Cyber Security Cell</p>
++        <h1 className="relative text-4xl md:text-6xl font-bold text-white mb-3">
++          AI-<span className="text-sky-400">MailNlyzer</span>
++        </h1>
++        <p className="relative text-lg text-slate-300 max-w-xl mb-2">From Suspicious Email to Actionable Intelligence.</p>
++        <p className="relative text-sm text-sky-400 tracking-widest uppercase mb-10">Detect · Trace · Correlate · Investigate</p>
+ 
+-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl">
+-        {FEATURES.map((f) => (
+-          <div key={f.label} className="panel p-5 text-left">
+-            <f.icon className="text-forensic-accent mb-2" size={20} />
+-            <div className="text-sm font-medium text-slate-200">{f.label}</div>
+-            <div className="text-xs text-slate-500 mt-1">{f.desc}</div>
+-          </div>
+-        ))}
+-      </div>
++        <div className="relative flex flex-wrap justify-center gap-4 mb-16">
++          <Link to="/login" className="btn-primary">Analyze Email <ArrowRight size={16} /></Link>
++          <Link to="/login" className="btn-secondary">View Demo Investigation</Link>
++        </div>
+ 
+-      <p className="text-xs text-slate-600 mt-16 max-w-lg">
+-        AI-MailNlyzer does not merely detect suspicious emails. It transforms emails into explainable, correlated,
+-        geolocated and evidence-preserving forensic intelligence.
+-      </p>
++        <div className="relative grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl">
++          {FEATURES.map((f) => (
++            <div key={f.label} className="panel p-5 text-left hover:shadow-glow hover:border-sky-400/50 transition">
++              <f.icon className="text-sky-400 mb-2" size={22} strokeWidth={1.6} />
++              <div className="text-sm font-semibold text-slate-100">{f.label}</div>
++              <div className="text-xs text-slate-400 mt-1">{f.desc}</div>
++            </div>
++          ))}
++        </div>
++
++        <p className="relative text-xs text-slate-500 mt-14 max-w-lg">
++          AI-MailNlyzer does not merely detect suspicious emails. It transforms emails into explainable, correlated,
++          geolocated and evidence-preserving forensic intelligence.
++        </p>
++      </main>
++
++      <footer className="border-t border-sky-500/20 bg-[#040d1f]/90 px-6 h-[52px] flex items-center justify-between text-[11px] text-slate-400">
++        <div className="flex items-center gap-2.5">
++          <Landmark size={22} className="text-slate-300" />
++          <div className="leading-tight">
++            <div className="text-slate-200 font-medium">Ministry of Electronics &amp; Information Technology</div>
++            <div>Government of India</div>
++          </div>
++        </div>
++        <span className="hidden md:inline">Powered by AI • Built for a Safer Digital India</span>
++      </footer>
+     </div>
+   );
+ }
+diff --git a/frontend/src/pages/LoginPage.css b/frontend/src/pages/LoginPage.css
+index 2041fe3..04852a7 100644
+--- a/frontend/src/pages/LoginPage.css
++++ b/frontend/src/pages/LoginPage.css
+@@ -1,14 +1,14 @@
+ @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap");
+ 
+ .auth {
+-  --bg: #0a0e14;
+-  --panel: #0f1520;
+-  --card: #0f1520;
+-  --line: #1e2733;
++  --bg: #061226;
++  --panel: #07142b;
++  --card: rgba(8, 20, 44, 0.92);
++  --line: #16315c;
+   --text: #e8eef9;
+-  --muted: #7d8aa0;
+-  --cyan: #22d3ee;
+-  --cyan-dark: #22d3ee;
++  --muted: #93a7c9;
++  --cyan: #38bdf8;
++  --cyan-dark: #0ea5e9;
+   --green: #22c55e;
+ 
+   min-height: 100vh;
+@@ -16,7 +16,10 @@
+   grid-template-columns: 1.1fr 1fr;
+   font-family: "Inter", system-ui, sans-serif;
+   color: var(--text);
+-  background: radial-gradient(circle at top left, #0f1a24 0%, #0a0e14 60%);
++  background:
++    radial-gradient(1100px 520px at 12% -8%, rgba(14, 90, 200, 0.28), transparent 60%),
++    radial-gradient(900px 500px at 100% 100%, rgba(10, 60, 150, 0.22), transparent 60%),
++    #040a18;
+ }
+ .auth *,
+ .auth *::before,
+@@ -25,7 +28,8 @@
+ /* ---------- Left panel ---------- */
+ .auth-brand {
+   background:
+-    radial-gradient(900px 500px at 10% 0%, rgba(34, 211, 238, 0.07), transparent 60%),
++    radial-gradient(900px 500px at 10% 0%, rgba(56, 189, 248, 0.14), transparent 60%),
++    radial-gradient(rgba(56, 189, 248, 0.22) 1px, transparent 1.2px) 0 0 / 10px 10px,
+     var(--panel);
+   border-right: 1px solid var(--line);
+   padding: 36px 56px;
+@@ -113,6 +117,7 @@
+   gap: 16px;
+   background: var(--card);
+   border: 1px solid var(--line);
++  box-shadow: 0 0 40px -14px rgba(56, 189, 248, 0.45);
+   border-radius: 8px;
+   padding: 32px;
+ }
+@@ -212,9 +217,10 @@
+   height: 48px;
+   margin-top: 4px;
+   border: 0;
+-  border-radius: 6px;
+-  background: var(--cyan);
+-  color: #0a0e14;
++  border-radius: 10px;
++  background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
++  box-shadow: 0 0 20px -4px rgba(56, 189, 248, 0.65);
++  color: #fff;
+   font: inherit;
+   font-size: 15px;
+   font-weight: 700;
+diff --git a/frontend/src/pages/ReportsPage.tsx b/frontend/src/pages/ReportsPage.tsx
+index 6cb94b1..31f888b 100644
+--- a/frontend/src/pages/ReportsPage.tsx
++++ b/frontend/src/pages/ReportsPage.tsx
+@@ -9,8 +9,8 @@ export default function ReportsPage() {
+   }, []);
+ 
+   return (
+-    <div className="p-8 max-w-5xl mx-auto space-y-6">
+-      <h1 className="text-xl font-semibold text-slate-100">Forensic Reports</h1>
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
++      <h1 className="text-2xl font-bold text-white">Forensic Reports</h1>
+       <div className="panel divide-y divide-forensic-border">
+         {reports.map((r) => (
+           <div key={r.id} className="p-4 flex items-center justify-between">
+diff --git a/frontend/src/pages/SettingsPage.tsx b/frontend/src/pages/SettingsPage.tsx
+index 9459b19..fb6484c 100644
+--- a/frontend/src/pages/SettingsPage.tsx
++++ b/frontend/src/pages/SettingsPage.tsx
+@@ -4,8 +4,8 @@ export default function SettingsPage() {
+   const [retention, setRetention] = useState("90");
+ 
+   return (
+-    <div className="p-8 max-w-2xl mx-auto space-y-6">
+-      <h1 className="text-xl font-semibold text-slate-100">Settings</h1>
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
++      <h1 className="text-2xl font-bold text-white">Settings</h1>
+       <div className="panel p-5 space-y-4">
+         <div>
+           <label className="text-xs text-slate-500 block mb-1">Data Retention Period</label>
+diff --git a/frontend/src/pages/ThreatGraphPage.tsx b/frontend/src/pages/ThreatGraphPage.tsx
+index 92d10ab..b62f2f7 100644
+--- a/frontend/src/pages/ThreatGraphPage.tsx
++++ b/frontend/src/pages/ThreatGraphPage.tsx
+@@ -82,7 +82,7 @@ export default function ThreatGraphPage() {
+           ),
+         },
+         style: {
+-          background: "#0f1520",
++          background: "#081226",
+           border: `1px solid ${color}`,
+           color: "#e2e8f0",
+           borderRadius: 8,
+@@ -101,7 +101,7 @@ export default function ThreatGraphPage() {
+       label: e.relationship === "OBSERVED_IN" ? undefined : e.relationship.replace(/_/g, " "),
+       style: { stroke: "#334155" },
+       labelStyle: { fill: "#94a3b8", fontSize: 10 },
+-      labelBgStyle: { fill: "#0b1018" },
++      labelBgStyle: { fill: "#040a18" },
+     }));
+ 
+     return { nodes, edges };
+@@ -114,13 +114,13 @@ export default function ThreatGraphPage() {
+   return (
+     <div className="h-full flex flex-col">
+       <div className="px-8 py-5 border-b border-forensic-border">
+-        <h1 className="text-xl font-semibold text-slate-100">Interactive Threat Graph</h1>
++        <h1 className="text-2xl font-bold text-white">Interactive Threat Graph</h1>
+         <p className="text-sm text-slate-500">Nodes: email, sender, IPs, domains, URLs, campaigns, case. Hover a node to see its full value.</p>
+       </div>
+       {error && <div className="p-6 text-red-400 text-sm">{error}</div>}
+       <div className="flex-1 relative">
+         <ReactFlow nodes={nodes} edges={edges} fitView fitViewOptions={{ padding: 0.2 }} minZoom={0.1}>
+-          <Background color="#1e2733" gap={24} />
++          <Background color="#16315c" gap={24} />
+           <Controls />
+         </ReactFlow>
+         <div
+diff --git a/frontend/src/pages/ThreatIntelligencePage.tsx b/frontend/src/pages/ThreatIntelligencePage.tsx
+index dfd71d2..74e37f0 100644
+--- a/frontend/src/pages/ThreatIntelligencePage.tsx
++++ b/frontend/src/pages/ThreatIntelligencePage.tsx
+@@ -39,9 +39,9 @@ export default function ThreatIntelligencePage() {
+   }
+ 
+   return (
+-    <div className="p-8 max-w-5xl mx-auto space-y-6">
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+       <div className="flex items-center justify-between">
+-        <h1 className="text-xl font-semibold text-slate-100">Threat Intelligence</h1>
++        <h1 className="text-2xl font-bold text-white">Threat Intelligence</h1>
+         {fromEmail && (
+           <Link to={`/investigate/emails/${fromEmail}`} className="btn-secondary">← Back to email</Link>
+         )}
+diff --git a/frontend/src/pages/UploadEmailPage.tsx b/frontend/src/pages/UploadEmailPage.tsx
+index f6c94aa..a65f113 100644
+--- a/frontend/src/pages/UploadEmailPage.tsx
++++ b/frontend/src/pages/UploadEmailPage.tsx
+@@ -75,9 +75,9 @@ export default function UploadEmailPage() {
+   }
+ 
+   return (
+-    <div className="p-8 max-w-4xl mx-auto space-y-6">
++    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+       <div>
+-        <h1 className="text-xl font-semibold text-slate-100">Upload Suspicious Email</h1>
++        <h1 className="text-2xl font-bold text-white">Upload Suspicious Email</h1>
+         <p className="text-sm text-slate-500">Upload a .eml/.msg file or paste raw email content/headers to begin analysis.</p>
+       </div>
+ 
+diff --git a/frontend/src/types/index.ts b/frontend/src/types/index.ts
+index 397b6c3..ccbac01 100644
+--- a/frontend/src/types/index.ts
++++ b/frontend/src/types/index.ts
+@@ -100,5 +100,7 @@ export interface DashboardSummary {
+   threatCategories: { classification: string; count: number }[];
+   recentInvestigations: EmailSummary[];
+   recentAlerts: Alert[];
++  weeklyTrend: { label: string; total: number; malicious: number; suspicious: number }[];
++  unreadAlerts: number;
+   systemHealth: { database: boolean; aiService: boolean };
+ }
+diff --git a/frontend/tailwind.config.js b/frontend/tailwind.config.js
+index 30d8a5b..feb71ce 100644
+--- a/frontend/tailwind.config.js
++++ b/frontend/tailwind.config.js
+@@ -4,10 +4,11 @@ export default {
+   theme: {
+     extend: {
+       colors: {
++        slate: { 400: "#a3b5d3", 500: "#8397ba", 600: "#6a7fa6" },
+         forensic: {
+-          bg: "#0a0e14",
+-          panel: "#0f1520",
+-          border: "#1e2733",
++          bg: "#040a18",
++          panel: "#081226",
++          border: "#12284a",
+           accent: "#22d3ee",
+           accent2: "#818cf8",
+           critical: "#ef4444",
+@@ -20,6 +21,17 @@ export default {
+         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
+         sans: ["Inter", "ui-sans-serif", "system-ui"],
+       },
++      boxShadow: {
++        glow: "0 0 24px -6px rgba(34,211,238,0.35)",
++        "glow-red": "0 0 24px -6px rgba(239,68,68,0.35)",
++      },
++      keyframes: {
++        "pulse-dot": {
++          "0%,100%": { opacity: "1", transform: "scale(1)" },
++          "50%": { opacity: "0.5", transform: "scale(1.4)" },
++        },
++      },
++      animation: { "pulse-dot": "pulse-dot 1.8s ease-in-out infinite" },
+     },
+   },
+   plugins: [],

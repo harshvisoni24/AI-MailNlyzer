@@ -1,0 +1,15 @@
+{
+  "numeric_features": [
+    "url_count",
+    "url_length_max",
+    "url_length_avg",
+    "url_subdom_max",
+    "url_subdom_avg",
+    "attachment_count",
+    "has_attachments"
+  ],
+  "holdout_source": "SpamAssasin",
+  "train_rows": 96917,
+  "val_rows": 13136,
+  "sources": "MeAJOR (TREC) + Human-LLM emails + Phish No More (CEAS, Enron, Ling, Nazario, Nigerian Fraud)"
+}

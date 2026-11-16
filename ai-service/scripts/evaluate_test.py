@@ -116,6 +116,26 @@ def main():
     print(f"Recall    = {m['recall']:.4f}")
     print(f"F1        = {m['f1']:.4f}")
     print(f"False-positive rate = {m['fpr']:.4f}  ({m['fpr'] * 100:.2f}%)")
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    cm = confusion_matrix(y_test, y_pred, labels=[0, 1])
+    fig, ax = plt.subplots(figsize=(4.5, 4))
+    ax.imshow(cm, cmap="Blues")
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels(["Benign", "Phishing"])
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(["Benign", "Phishing"])
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("Actual")
+    ax.set_title("Confusion Matrix (test set)")
+    for i in range(2):
+        for j in range(2):
+            ax.text(j, i, f"{cm[i, j]:,}", ha="center", va="center",
+                    color="white" if cm[i, j] > cm.max() / 2 else "black")
+    plt.tight_layout()
+    plt.savefig("confusion_matrix_test.png", dpi=200)
+    print("Saved confusion_matrix_test.png")
 
     # ---- Breakdown by source and language ----
     group_table(test_df, y_pred, "source", min_n=50)
