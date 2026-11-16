@@ -22,8 +22,8 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
-      <h1 className="text-xl font-semibold text-slate-100">Administration — Users & Roles</h1>
+    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+      <h1 className="text-2xl font-bold text-white">Administration — Users & Roles</h1>
       <div className="panel divide-y divide-forensic-border">
         {users.map((u) => (
           <div key={u.id} className="p-4 flex items-center justify-between">

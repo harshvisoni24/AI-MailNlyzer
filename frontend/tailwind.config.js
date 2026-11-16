@@ -4,10 +4,11 @@ export default {
   theme: {
     extend: {
       colors: {
+        slate: { 400: "#a3b5d3", 500: "#8397ba", 600: "#6a7fa6" },
         forensic: {
-          bg: "#0a0e14",
-          panel: "#0f1520",
-          border: "#1e2733",
+          bg: "#040a18",
+          panel: "#081226",
+          border: "#12284a",
           accent: "#22d3ee",
           accent2: "#818cf8",
           critical: "#ef4444",
@@ -20,6 +21,17 @@ export default {
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
         sans: ["Inter", "ui-sans-serif", "system-ui"],
       },
+      boxShadow: {
+        glow: "0 0 24px -6px rgba(34,211,238,0.35)",
+        "glow-red": "0 0 24px -6px rgba(239,68,68,0.35)",
+      },
+      keyframes: {
+        "pulse-dot": {
+          "0%,100%": { opacity: "1", transform: "scale(1)" },
+          "50%": { opacity: "0.5", transform: "scale(1.4)" },
+        },
+      },
+      animation: { "pulse-dot": "pulse-dot 1.8s ease-in-out infinite" },
     },
   },
   plugins: [],

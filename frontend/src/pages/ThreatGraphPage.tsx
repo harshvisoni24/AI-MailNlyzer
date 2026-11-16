@@ -82,7 +82,7 @@ export default function ThreatGraphPage() {
           ),
         },
         style: {
-          background: "#0f1520",
+          background: "#081226",
           border: `1px solid ${color}`,
           color: "#e2e8f0",
           borderRadius: 8,
@@ -101,7 +101,7 @@ export default function ThreatGraphPage() {
       label: e.relationship === "OBSERVED_IN" ? undefined : e.relationship.replace(/_/g, " "),
       style: { stroke: "#334155" },
       labelStyle: { fill: "#94a3b8", fontSize: 10 },
-      labelBgStyle: { fill: "#0b1018" },
+      labelBgStyle: { fill: "#040a18" },
     }));
 
     return { nodes, edges };
@@ -114,13 +114,13 @@ export default function ThreatGraphPage() {
   return (
     <div className="h-full flex flex-col">
       <div className="px-8 py-5 border-b border-forensic-border">
-        <h1 className="text-xl font-semibold text-slate-100">Interactive Threat Graph</h1>
+        <h1 className="text-2xl font-bold text-white">Interactive Threat Graph</h1>
         <p className="text-sm text-slate-500">Nodes: email, sender, IPs, domains, URLs, campaigns, case. Hover a node to see its full value.</p>
       </div>
       {error && <div className="p-6 text-red-400 text-sm">{error}</div>}
       <div className="flex-1 relative">
         <ReactFlow nodes={nodes} edges={edges} fitView fitViewOptions={{ padding: 0.2 }} minZoom={0.1}>
-          <Background color="#1e2733" gap={24} />
+          <Background color="#16315c" gap={24} />
           <Controls />
         </ReactFlow>
         <div

@@ -9,8 +9,8 @@ export default function ReportsPage() {
   }, []);
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
-      <h1 className="text-xl font-semibold text-slate-100">Forensic Reports</h1>
+    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+      <h1 className="text-2xl font-bold text-white">Forensic Reports</h1>
       <div className="panel divide-y divide-forensic-border">
         {reports.map((r) => (
           <div key={r.id} className="p-4 flex items-center justify-between">

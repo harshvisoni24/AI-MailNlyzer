@@ -13,8 +13,8 @@ export default function CasesListPage() {
   }, []);
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-xl font-semibold text-slate-100">Investigation Cases</h1>
+    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+      <h1 className="text-2xl font-bold text-white">Investigation Cases</h1>
       <div className="grid md:grid-cols-2 gap-4">
         {cases.map((c) => (
           <Link key={c.id} to={`/cases/${c.id}`} className="panel p-5 hover:border-forensic-accent transition">
