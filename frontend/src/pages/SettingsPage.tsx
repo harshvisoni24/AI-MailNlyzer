@@ -4,8 +4,8 @@ export default function SettingsPage() {
   const [retention, setRetention] = useState("90");
 
   return (
-    <div className="p-8 max-w-2xl mx-auto space-y-6">
-      <h1 className="text-xl font-semibold text-slate-100">Settings</h1>
+    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+      <h1 className="text-2xl font-bold text-white">Settings</h1>
       <div className="panel p-5 space-y-4">
         <div>
           <label className="text-xs text-slate-500 block mb-1">Data Retention Period</label>

@@ -97,10 +97,10 @@ export default function EmailDetailPage() {
     : "Rule engine + ML model";
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-slate-100">{email.subject}</h1>
+          <h1 className="text-2xl font-bold text-white">{email.subject}</h1>
           <p className="text-sm text-slate-500">From {email.fromAddress} · Sent {new Date(email.sentDate ?? email.createdAt).toLocaleString()}</p>
           <p className="text-xs text-slate-600">Analyzed {new Date(email.createdAt).toLocaleString()}</p>
         </div>

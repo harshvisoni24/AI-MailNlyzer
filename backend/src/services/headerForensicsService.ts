@@ -85,6 +85,8 @@ export function detectHeaderAnomalies(params: {
   replyTo?: string;
   returnPath?: string;
   messageId?: string;
+  displayName?: string;
+  receivedChain?: string[];
 }) {
   const anomalies: string[] = [];
   const fromDomain = params.fromAddress.split("@")[1]?.toLowerCase();
@@ -114,7 +116,33 @@ export function detectHeaderAnomalies(params: {
   } else {
     anomalies.push("Message-ID header is missing, which is unusual for legitimate mail servers.");
   }
+    // Display-name spoofing
+  if (params.displayName) {
+    const dn = params.displayName.toLowerCase();
+    const emailInName = dn.match(/[a-z0-9._%+-]+@([a-z0-9.-]+\.[a-z]{2,})/);
+    if (emailInName && fromDomain && !sameOrg(emailInName[1], fromDomain)) {
+      anomalies.push(`Display name shows an address on ${emailInName[1]}, but the real sender domain is ${fromDomain}.`);
+    }
+    const brands = ["paypal", "microsoft", "google", "amazon", "apple", "netflix", "sbi", "hdfc", "icici", "bank", "support", "security"];
+    const brand = brands.find((b) => dn.includes(b));
+    if (brand && fromDomain && !fromDomain.includes(brand)) {
+      anomalies.push(`Display name mentions "${brand}" but the sender domain is ${fromDomain}; possible display-name spoofing.`);
+    }
+  }
 
+  // Hop anomalies
+  if (params.receivedChain && params.receivedChain.length > 0) {
+    if (params.receivedChain.length > 8) {
+      anomalies.push(`Unusually long relay path (${params.receivedChain.length} hops).`);
+    }
+    const times = params.receivedChain.map((r) => Date.parse(r.split(";").pop()?.trim() ?? ""));
+    for (let i = 1; i < times.length; i++) {
+      if (!isNaN(times[i]) && !isNaN(times[i - 1]) && times[i] < times[i - 1] - 5 * 60 * 1000) {
+        anomalies.push(`Received hop ${i + 1} is timestamped earlier than the previous hop; possible forged or manipulated headers.`);
+        break;
+      }
+    }
+  }
   return anomalies;
 }
 
@@ -179,4 +207,22 @@ export function detectLookalikeDomain(domain: string): { trustedDomain: string; 
     }
   }
   return best;
+}
+export async function getDomainAgeDays(domain: string): Promise<number | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
+  signal: controller.signal,
+  headers: { "User-Agent": "AI-MailNlyzer/1.0" },
+});
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const data: any = await res.json();
+    const reg = (data.events ?? []).find((e: any) => e.eventAction === "registration");
+    if (!reg?.eventDate) return null;
+    return Math.floor((Date.now() - Date.parse(reg.eventDate)) / 86400000);
+  } catch {
+    return null;
+  }
 }

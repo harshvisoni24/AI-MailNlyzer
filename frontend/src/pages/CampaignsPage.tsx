@@ -27,9 +27,9 @@ export default function CampaignsPage() {
   }
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-100">Campaign Detection</h1>
+        <h1 className="text-2xl font-bold text-white">Campaign Detection</h1>
         <button className="btn-primary" onClick={runDetection} disabled={detecting}>
           {detecting ? "Correlating…" : "Run Campaign Detection"}
         </button>

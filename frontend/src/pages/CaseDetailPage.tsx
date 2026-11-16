@@ -30,11 +30,11 @@ export default function CaseDetailPage() {
   if (!caseData) return <div className="p-8 text-slate-500">Loading case…</div>;
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <span className="font-mono text-xs text-slate-500">{caseData.caseNumber}</span>
-          <h1 className="text-xl font-semibold text-slate-100">{caseData.title}</h1>
+          <h1 className="text-2xl font-bold text-white">{caseData.title}</h1>
         </div>
         <button className="btn-primary" onClick={generateReport}>Generate Forensic Report</button>
       </div>

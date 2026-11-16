@@ -21,9 +21,9 @@ export default function EvidenceVaultPage() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-100">Evidence Vault</h1>
+        <h1 className="text-2xl font-bold text-white">Evidence Vault</h1>
         <button className="btn-secondary" onClick={verifyLedger}>Verify Integrity Ledger</button>
       </div>
 

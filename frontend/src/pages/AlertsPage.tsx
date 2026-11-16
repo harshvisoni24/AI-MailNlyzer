@@ -16,8 +16,8 @@ export default function AlertsPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
-      <h1 className="text-xl font-semibold text-slate-100">Alerts</h1>
+    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+      <h1 className="text-2xl font-bold text-white">Alerts</h1>
       <div className="space-y-2">
         {alerts.map((a) => (
           <div key={a.id} className={`panel p-4 flex items-start justify-between ${a.isRead ? "opacity-60" : ""}`}>

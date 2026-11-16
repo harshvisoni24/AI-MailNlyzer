@@ -7,7 +7,7 @@
   --line: #1e2733;
   --text: #e8eef9;
   --muted: #7d8aa0;
-  --cyan: #22d3ee;
+  --cyan: cyan;
   --cyan-dark: #22d3ee;
   --green: #22c55e;
 
@@ -242,4 +242,27 @@
   .auth-brand { display: none; }
   .mobile-logo { display: flex; }
   .auth-card { padding: 24px; }
+}
+/* ---- neon theme override ---- */
+.auth {
+  --bg: #061226;
+  --panel: #07142b;
+  --card: rgba(8, 20, 44, 0.92);
+  --line: #16315c;
+  --muted: #93a7c9;
+  --cyan: #38bdf8;
+  background:
+    radial-gradient(1100px 520px at 12% -8%, rgba(14, 90, 200, 0.28), transparent 60%),
+    radial-gradient(900px 500px at 100% 100%, rgba(10, 60, 150, 0.22), transparent 60%),
+    #040a18;
+}
+.auth-card {
+  box-shadow: 0 0 40px -14px rgba(56, 189, 248, 0.45);
+  border-radius: 12px;
+}
+.submit {
+  background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+  box-shadow: 0 0 20px -4px rgba(56, 189, 248, 0.65);
+  color: #fff;
+  border-radius: 10px;
 }

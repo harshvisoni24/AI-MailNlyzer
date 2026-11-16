@@ -9,6 +9,7 @@ import {
   extractIpsFromReceivedChain,
   detectHeaderAnomalies,
   detectLookalikeDomain,
+  getDomainAgeDays,
 } from "../services/headerForensicsService";
 import { analyzeParsedEmail, checkAiServiceHealth } from "../services/aiServiceClient";
 import { recordAudit } from "../services/auditService";
@@ -27,10 +28,16 @@ async function ingestAndAnalyze(rawSource: string, storagePath: string | null, c
     replyTo: parsed.replyTo,
     returnPath: parsed.returnPath,
     messageId: parsed.messageId,
+    receivedChain,
+    displayName: parsed.fromName,
   });
   const relayIps = extractIpsFromReceivedChain(receivedChain);
   const fromDomain = parsed.from.split("@")[1]?.toLowerCase() ?? "";
   const lookalike = fromDomain ? detectLookalikeDomain(fromDomain) : null;
+    const domainAge = fromDomain ? await getDomainAgeDays(fromDomain) : null;
+  if (domainAge !== null && domainAge < 30) {
+    anomalies.push(`Sender domain ${fromDomain} was registered only ${domainAge} day(s) ago; newly registered domains are commonly used for phishing.`);
+  }
 
   const email = await prisma.email.create({
     data: {

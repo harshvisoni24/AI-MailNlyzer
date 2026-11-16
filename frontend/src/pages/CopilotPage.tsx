@@ -39,10 +39,10 @@ export default function CopilotPage() {
   }
 
   return (
-    <div className="p-8 max-w-3xl mx-auto space-y-6">
+    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
       <div className="flex items-center gap-2">
         <Bot className="text-forensic-accent" size={22} />
-        <h1 className="text-xl font-semibold text-slate-100">Forensic Copilot</h1>
+        <h1 className="text-2xl font-bold text-white">Forensic Copilot</h1>
       </div>
       <p className="text-sm text-slate-500">
         Answers are grounded in real investigation data. Optionally scope the conversation to a specific email or case ID below.
