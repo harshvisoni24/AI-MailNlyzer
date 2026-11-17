@@ -19,7 +19,6 @@ import {
   LogOut,
   Search,
   ChevronDown,
-  Landmark,
   Microscope,
   Shield,
 } from "lucide-react";
@@ -65,7 +64,7 @@ function Dropdown({ label, icon: Icon, items }: { label: string; icon: any; item
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((o) => !o)} className={`top-link ${active ? "active" : ""}`}>
-        <Icon size={15} />
+        <Icon size={15} className="hidden min-[1500px]:block" />
         {label}
         <ChevronDown size={13} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
@@ -151,10 +150,10 @@ export default function AppLayout() {
 
           <nav className="flex items-center gap-1 ml-4">
             <NavLink to="/" end className={({ isActive }) => `top-link ${isActive ? "active" : ""}`}>
-              <LayoutDashboard size={15} /> Dashboard
+              <LayoutDashboard size={15} className="hidden min-[1500px]:block" /> Dashboard
             </NavLink>
             <NavLink to="/investigate/upload" className={({ isActive }) => `top-link ${isActive ? "active" : ""}`}>
-              <Upload size={15} /> Upload Email
+              <Upload size={15} className="hidden min-[1500px]:block" /> Upload Email
             </NavLink>
             <Dropdown label="Threat Intelligence" icon={Radar} items={THREAT_INTEL} />
             <Dropdown label="Investigations" icon={Microscope} items={INVESTIGATIONS} />
@@ -162,7 +161,7 @@ export default function AppLayout() {
             <Dropdown label="More" icon={Settings} items={MORE} />
           </nav>
 
-          <form onSubmit={handleSearch} className="ml-auto relative w-[320px] max-w-[28vw]">
+          <form onSubmit={handleSearch} className="ml-auto relative w-[300px] min-w-[200px] shrink max-w-[24vw]">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={query}
@@ -189,7 +188,7 @@ export default function AppLayout() {
                 {initials}
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-[#040d1f]" />
               </div>
-              <div className="text-left leading-tight hidden xl:block">
+              <div className="text-left leading-tight hidden min-[1400px]:block whitespace-nowrap">
                 <div className="text-sm font-semibold text-slate-100">{name}</div>
                 <div className="text-[11px] text-slate-400 capitalize">{user?.role?.toLowerCase()}</div>
               </div>
@@ -216,11 +215,12 @@ export default function AppLayout() {
       <footer className="shrink-0 border-t border-sky-500/20 bg-[#040d1f]/90 px-5 h-[60px] flex items-center justify-between text-[11px] text-slate-400">
         <div className="flex items-center gap-2.5">
           <div className="relative">
-          <div className="absolute inset-0 rounded-full bg-sky-400/40 blur-md" />
-          <img
-            src="/bvm-logo.png"
-            alt="BVM logo"
-            className="relative h-11 w-11 rounded-full bg-white object-contain p-0.5 ring-2 ring-sky-400/70 shadow-glow"/>
+            <div className="absolute inset-0 rounded-full bg-sky-400/40 blur-md" />
+            <img
+              src="/bvm-logo.png"
+              alt="BVM logo"
+              className="relative h-11 w-11 rounded-full bg-white object-contain p-0.5 ring-2 ring-sky-400/70 shadow-glow"
+            />
           </div>
           <div className="leading-tight">
             <div className="text-[13px] font-bold tracking-wide text-white">

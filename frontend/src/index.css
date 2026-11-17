@@ -67,3 +67,4 @@ select.input option { background: #081226; color: #e2e8f0; }
 .badge { @apply rounded-full px-2.5; }
 .react-flow__controls-button { background: #081226; border-bottom: 1px solid #16315c; fill: #cbd5e1; }
 .react-flow__controls-button:hover { background: #0e2147; }
+.map-dark { filter: invert(1) hue-rotate(180deg) brightness(0.75) contrast(1.1) saturate(0.5); }

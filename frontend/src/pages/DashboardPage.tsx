@@ -16,7 +16,6 @@ import {
   ArrowDown,
   Check,
   Info,
-  Shield,
 } from "lucide-react";
 import {
   Area,
@@ -83,17 +82,39 @@ function trend(series: number[]) {
   return Math.round(((cur - prev) / prev) * 100);
 }
 
+function growth(series: number[]) {
+  const first = series[0] ?? 0;
+  const last = series[series.length - 1] ?? 0;
+  if (first === 0) return last === 0 ? 0 : 100;
+  return Math.round(((last - first) / first) * 100);
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
+  const [caseDays, setCaseDays] = useState<number[] | null>(null);
 
   useEffect(() => {
     api
       .get("/dashboard")
       .then((res) => setData(res.data))
       .catch(() => setError("Could not load dashboard data. Check that the backend and database are running."));
+    // Cumulative case count per day (last 7 days) for the Active Cases sparkline
+    api
+      .get("/cases")
+      .then((res) => {
+        const list = res.data as { createdAt: string }[];
+        const ends = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date();
+          d.setHours(23, 59, 59, 999);
+          d.setDate(d.getDate() - (6 - i));
+          return d.getTime();
+        });
+        setCaseDays(ends.map((end) => list.filter((c) => new Date(c.createdAt).getTime() <= end).length));
+      })
+      .catch(() => setCaseDays(null));
   }, []);
 
   useEffect(() => {
@@ -139,8 +160,8 @@ export default function DashboardPage() {
           series: weekly.map((w) => w.malicious + w.suspicious),
           glow: "text-red-400",
         },
-        { label: "Critical Threats", value: data.metrics.criticalThreats, icon: AlertTriangle, color: C.malicious, series: weekly.map((w) => w.malicious), glow: "text-red-400" },
-        { label: "Active Cases", value: data.metrics.activeCases, icon: FolderOpen, color: "#a855f7", series: null, glow: "text-sky-300" },
+        { label: "Critical Threats", value: data.metrics.criticalThreats, icon: AlertTriangle, color: C.malicious, series: weekly.map((w) => w.malicious), glow: "text-red-400", alwaysRed: true },
+        { label: "Active Cases", value: data.metrics.activeCases, icon: FolderOpen, color: "#a855f7", series: caseDays, glow: "text-cyan-300", cumulative: true },
       ]
     : [];
 
@@ -149,59 +170,57 @@ export default function DashboardPage() {
       {error && <div className="panel p-4 text-sm text-red-400">{error}</div>}
 
       {/* Hero + metric cards */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_2fr] gap-4">
-        <div className="panel relative overflow-hidden p-6 flex items-center gap-6 min-h-[180px]">
-          <div
-            className="absolute inset-0 opacity-40 pointer-events-none"
+      <div className="grid grid-cols-1 xl:grid-cols-[1.28fr_1fr] gap-4">
+        <div className="panel relative overflow-hidden min-h-[190px] flex items-center pl-2 pr-6 py-4 !border-sky-400/30 shadow-[0_0_40px_-16px_rgba(56,189,248,0.7)]">
+          <img
+            src="/hero-map.svg"
+            alt=""
+            aria-hidden="true"
+            className="absolute right-0 top-1/2 -translate-y-1/2 w-[48%] max-w-[520px] pointer-events-none select-none"
             style={{
-              backgroundImage: "radial-gradient(rgba(56,189,248,0.55) 1px, transparent 1.2px)",
-              backgroundSize: "9px 9px",
-              maskImage: "radial-gradient(ellipse at 85% 30%, black 0%, transparent 60%)",
-              WebkitMaskImage: "radial-gradient(ellipse at 85% 30%, black 0%, transparent 60%)",
+              filter: "brightness(1.2) saturate(1.15)",
+              maskImage: "linear-gradient(to right, transparent 0%, black 48%, black 92%, transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 48%, black 90%, transparent 100%)",
             }}
           />
-          <div className="relative shrink-0 w-28 h-28 flex items-center justify-center">
-            <div className="absolute inset-0 rounded-full bg-sky-500/20 blur-2xl" />
-            <Shield size={104} className="text-sky-400 relative drop-shadow-[0_0_16px_rgba(56,189,248,0.8)]" strokeWidth={1.4} />
-            <Mail size={38} className="absolute text-sky-200" />
-          </div>
-          <div className="relative">
-            <h1 className="text-[28px] font-bold text-white leading-tight">
-              Welcome Back, <span className="text-sky-400">{firstName}!</span>
+          <img
+            src="/hero-shield.svg"
+            alt=""
+            aria-hidden="true"
+            className="relative shrink-0 w-[170px] h-auto select-none drop-shadow-[0_0_22px_rgba(34,211,238,0.3)]"
+          />
+          <div className="relative z-10 ml-1">
+            <h1 className="text-[27px] font-bold text-white leading-tight tracking-tight">
+              Welcome Back, <span className="text-cyan-400">{firstName}!</span>
             </h1>
-            <p className="text-sm text-slate-300 mt-1">Here's what's happening with your security operations today.</p>
-            <div className="mt-4 flex items-center gap-3 text-sm">
+            <p className="text-[12.5px] text-slate-100 mt-1.5 whitespace-nowrap">Here's what's happening with your security operations today.</p>
+            <div className="mt-5 flex items-center gap-3 text-[13px]">
               <span className={`flex items-center gap-2 font-medium ${online ? "text-green-400" : "text-red-400"}`}>
-                <span className={`w-2.5 h-2.5 rounded-full animate-pulse-dot ${online ? "bg-green-400" : "bg-red-500"}`} />
+                <span className={`w-2.5 h-2.5 rounded-full animate-pulse-dot ${online ? "bg-green-400 shadow-[0_0_8px_#4ade80]" : "bg-red-500"}`} />
                 System {online ? "Online" : "Offline"}
               </span>
-              <span className="text-slate-600">|</span>
+              <span className="text-slate-500">|</span>
               <span className="text-slate-300">{stamp}</span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {cards.map((m, i) => {
-            const d = m.series ? trend(m.series) : null;
+            const d = m.series ? (m.cumulative ? growth(m.series) : trend(m.series)) : null;
+            const up = (d ?? 0) >= 0;
+            const trendColor = m.alwaysRed ? "text-red-400" : d === null || d === 0 ? "text-green-400" : up ? "text-green-400" : "text-red-400";
             return (
-              <div key={m.label} className="panel p-4 flex flex-col justify-between">
-                <m.icon size={30} className={m.glow} strokeWidth={1.6} />
-                <div>
-                  <div className="text-[34px] font-bold text-white leading-none mt-3">{m.value}</div>
-                  <div className="text-[13px] text-slate-300 mt-1">{m.label}</div>
-                </div>
-                <div className="flex items-end justify-between mt-2 h-10">
-                  {d !== null ? (
-                    <span className={`text-xs font-medium flex items-center ${d > 0 ? "text-green-400" : d < 0 ? "text-red-400" : "text-slate-400"}`}>
-                      {d < 0 ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
-                      {d > 0 ? "+" : ""}
-                      {d}%
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-400">{data?.metrics.activeCampaigns} campaigns</span>
-                  )}
-                  <div className="w-20 h-9">
+              <div key={m.label} className="panel px-3.5 pt-4 pb-3 flex flex-col">
+                <m.icon size={32} className={`${m.glow}`} strokeWidth={1.6} style={{ filter: `drop-shadow(0 0 7px ${m.color})` }} />
+                <div className="text-[34px] font-bold text-white leading-none mt-4">{m.value}</div>
+                <div className="text-[12px] text-slate-300 mt-1.5 whitespace-nowrap">{m.label}</div>
+                <div className="flex items-end justify-between mt-3 h-11">
+                  <span className={`text-[11.5px] font-semibold flex items-center pb-0.5 whitespace-nowrap ${trendColor}`}>
+                    {up ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                    {d !== null ? `${up ? "+" : ""}${d}%` : "—"}
+                  </span>
+                  <div className="w-[68px] h-11 shrink-0" style={{ filter: `drop-shadow(0 0 4px ${m.color}88)` }}>
                     {m.series ? <Spark id={`sp${i}`} color={m.color} data={m.series.map((v) => ({ v }))} /> : null}
                   </div>
                 </div>
@@ -318,8 +337,8 @@ export default function DashboardPage() {
           </div>
           <div className="flex gap-4">
             <div className="flex-1 h-[150px] rounded-lg overflow-hidden border border-sky-500/20">
-              <MapContainer center={[22, 20]} zoom={1} minZoom={1} scrollWheelZoom={true} zoomControl={true} attributionControl={false} style={{ height: "100%", width: "100%", background: "#050c1c" }}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <MapContainer center={[22, 20]} zoom={1} minZoom={0} scrollWheelZoom={true} zoomControl={true} attributionControl={false} style={{ height: "100%", width: "100%", background: "#050c1c" }}>
+                <TileLayer className="map-dark" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               </MapContainer>
             </div>
             <div className="w-[130px] space-y-3 text-xs">
