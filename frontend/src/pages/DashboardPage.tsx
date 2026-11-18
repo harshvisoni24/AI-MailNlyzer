@@ -117,27 +117,12 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
-  const [caseDays, setCaseDays] = useState<number[] | null>(null);
 
   useEffect(() => {
     api
       .get("/dashboard")
       .then((res) => setData(res.data))
       .catch(() => setError("Could not load dashboard data. Check that the backend and database are running."));
-    // Cumulative case count per day (last 7 days) for the Active Cases sparkline
-    api
-      .get("/cases")
-      .then((res) => {
-        const list = res.data as { createdAt: string }[];
-        const ends = Array.from({ length: 7 }, (_, i) => {
-          const d = new Date();
-          d.setHours(23, 59, 59, 999);
-          d.setDate(d.getDate() - (6 - i));
-          return d.getTime();
-        });
-        setCaseDays(ends.map((end) => list.filter((c) => new Date(c.createdAt).getTime() <= end).length));
-      })
-      .catch(() => setCaseDays(null));
   }, []);
 
   useEffect(() => {
@@ -186,11 +171,11 @@ export default function DashboardPage() {
           value: data.metrics.threatsDetected,
           icon: ShieldAlert,
           color: "#3b82f6",
-          series: weekly.map((w) => w.malicious + w.suspicious),
+          series: weekly.map((w) => w.threats),
           glow: "text-red-400",
         },
-        { label: "Critical Threats", value: data.metrics.criticalThreats, icon: AlertTriangle, color: C.malicious, series: weekly.map((w) => w.malicious), glow: "text-red-400", alwaysRed: true },
-        { label: "Active Cases", value: data.metrics.activeCases, icon: FolderOpen, color: "#a855f7", series: caseDays, glow: "text-cyan-300", cumulative: true },
+        { label: "Critical Threats", value: data.metrics.criticalThreats, icon: AlertTriangle, color: C.malicious, series: weekly.map((w) => w.critical), glow: "text-red-400", alwaysRed: true },
+        { label: "Active Cases", value: data.metrics.activeCases, icon: FolderOpen, color: "#a855f7", series: weekly.map((w) => w.activeCases), glow: "text-cyan-300", cumulative: true },
       ]
     : [];
 

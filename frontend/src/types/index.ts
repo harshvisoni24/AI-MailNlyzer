@@ -100,7 +100,7 @@ export interface DashboardSummary {
   threatCategories: { classification: string; count: number }[];
   recentInvestigations: EmailSummary[];
   recentAlerts: Alert[];
-  weeklyTrend: { label: string; total: number; malicious: number; suspicious: number }[];
+  weeklyTrend: { label: string; total: number; malicious: number; suspicious: number; threats: number; critical: number; activeCases: number }[];
   unreadAlerts: number;
   systemHealth: { database: boolean; aiService: boolean };
 }

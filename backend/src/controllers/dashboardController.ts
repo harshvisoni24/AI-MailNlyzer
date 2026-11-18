@@ -65,18 +65,33 @@ export async function getDashboardSummary(req: Request, res: Response, next: Nex
     since.setDate(since.getDate() - 6);
     const weekEmails = await prisma.email.findMany({
       where: { ownerId, createdAt: { gte: since } },
-      select: { createdAt: true, threatScore: true },
+      select: { createdAt: true, threatScore: true, threatClassification: true },
+    });
+    // Cases that are active now, or were still open on a given day (for the Active Cases graph)
+    const caseRows = await prisma.case.findMany({
+      where: { ownerId },
+      select: { createdAt: true, closedAt: true, status: true },
     });
     const weeklyTrend = Array.from({ length: 7 }, (_, i) => {
       const day = new Date(since);
       day.setDate(since.getDate() + i);
       const key = day.toDateString();
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
       const rows = weekEmails.filter((e: any) => new Date(e.createdAt).toDateString() === key);
       return {
         label: day.toLocaleDateString("en-US", { weekday: "short" }),
         total: rows.length,
         malicious: rows.filter((e: any) => (e.threatScore ?? 0) >= 70).length,
         suspicious: rows.filter((e: any) => (e.threatScore ?? 0) >= 40 && (e.threatScore ?? 0) < 70).length,
+        // same rules as the big numbers on the metric cards
+        threats: rows.filter((e: any) => !["LEGITIMATE", "LOW_RISK"].includes(e.threatClassification)).length,
+        critical: rows.filter((e: any) => (e.threatScore ?? 0) >= 90).length,
+        activeCases: caseRows.filter(
+          (c: any) =>
+            new Date(c.createdAt) <= dayEnd &&
+            (["OPEN", "ACTIVE"].includes(c.status) || (c.closedAt && new Date(c.closedAt) > dayEnd))
+        ).length,
       };
     });
     const unreadAlerts = await prisma.alert.count({ where: { ownerId, isRead: false } });
