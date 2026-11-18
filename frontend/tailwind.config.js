@@ -1,6 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  // badge-${level} is built at runtime, so Tailwind cannot see these class names in the source
+  safelist: ["badge-critical", "badge-high", "badge-medium", "badge-low", "badge-neutral"],
   theme: {
     extend: {
       colors: {

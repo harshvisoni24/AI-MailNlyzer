@@ -1,3 +1,5 @@
+import { CircleHelp, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
+
 interface Props {
   score?: number | null;
   classification?: string;
@@ -35,7 +37,12 @@ const CLASSIFICATION_LEVEL: Record<string, "critical" | "high" | "medium" | "low
 
 export function ClassificationBadge({ classification }: Props) {
   const level = CLASSIFICATION_LEVEL[classification ?? "UNKNOWN"] ?? "neutral";
-  return <span className={`badge badge-${level}`}>{(classification ?? "UNKNOWN").replace(/_/g, " ")}</span>;
+  const Icon = level === "low" ? ShieldCheck : level === "critical" ? TriangleAlert : level === "neutral" ? CircleHelp : ShieldAlert;
+  return (
+    <span className={`badge badge-${level}`}>
+      <Icon size={13} /> {(classification ?? "UNKNOWN").replace(/_/g, " ")}
+    </span>
+  );
 }
 
 export function AuthResultBadge({ result }: { result: string }) {

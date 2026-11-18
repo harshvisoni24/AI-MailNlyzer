@@ -4,6 +4,20 @@
 
 AI-MailNlyzer analyzes emails to decide whether they are malicious (phishing, spam, malware-carrying) and explains *why*. It combines a machine-learning classifier with header and authentication forensics, IOC extraction, live threat-intelligence lookups, case management, tamper-evident evidence storage and printable forensic reports, so an analyst gets a verdict and the evidence behind it in one place.
 
+**Built by Team BVM_Team_Suspicious**, Birla Vishvakarma Mahavidyalaya (BVM).
+
+## Screenshots
+
+> The screenshots below use sample data, not real emails.
+
+**Dashboard**: live metrics, threat analytics, Global Threat Map, critical alerts and system health.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+| Upload Email | Email Detail | Case Detail |
+|---|---|---|
+| ![Upload Email](docs/screenshots/investigate_upload.png) | ![Email Detail](docs/screenshots/investigate_emails_1.png) | ![Case Detail](docs/screenshots/cases_c1.png) |
+
 ---
 
 ## Table of Contents
@@ -54,7 +68,9 @@ Phishing and malicious emails are a primary attack vector. Manual inspection is 
 - Case management: group emails and evidence into cases with severity, status and an assigned analyst.
 - Campaign detection: emails sharing infrastructure (URLs, relay IPs) are correlated into campaigns.
 - Threat graph view of related indicators.
-- Alerts, dashboard and an audit log of user actions.
+- Alerts and an audit log of user actions.
+- Dashboard with live metric cards (each graph follows the same rule as its number), a 7-day Threat Analytics chart, a Threat Distribution donut, recent investigations, critical alerts and system health.
+- Global Threat Map showing where suspicious and malicious emails came from (see section 10).
 - Role-based access with JWT login and an admin user-management page.
 
 **Threat intelligence (live)**
@@ -137,6 +153,8 @@ Results are produced by `ai-service/scripts/evaluate_test.py`. Training scripts 
 | AI service | Python, FastAPI, XGBoost, scikit-learn, pandas, NumPy |
 | LLM | Google Gemini (explanations and Copilot) |
 | Threat intelligence | AbuseIPDB, VirusTotal |
+| Maps | Leaflet (react-leaflet), OpenStreetMap tiles, ip-api.com for IP location |
+| Charts | Recharts |
 | Auth | JWT |
 
 ## 6. Project Structure
@@ -168,7 +186,8 @@ ai-mailnlyzer/
 │   ├── scripts/              # dataset prep, training, evaluation
 │   └── requirements.txt
 ├── demo-data/                # sample .eml files
-├── docs/                     # PGVECTOR.md, REMOTE_POSTGRESQL.md, ML results
+├── docs/                     # PGVECTOR.md, REMOTE_POSTGRESQL.md, ML results,
+│   └── screenshots/          # images used in this README
 ├── scripts/setup.sh
 └── README.md
 ```
@@ -292,6 +311,16 @@ python scripts/evaluate_test.py
 | Alerts, Audit Log | Notifications and a record of user actions |
 | Admin Users, Settings | User management and preferences |
 
+**Global Threat Map**
+
+The map on the Dashboard plots the sender of each suspicious or malicious email.
+
+- For every email that is not classified Legitimate or Low Risk, the backend takes the first public IP address in its `Received` header chain.
+- The IPs are located with the free ip-api.com batch service. Results are cached in memory, and no API key is needed.
+- Dot colours: red = critical source (score 90 or more), orange = high-risk (70 to 89), blue = suspicious (below 70). The legend on the right uses the same colours and counts.
+- If the location service cannot be reached, the map shows "No locatable sender IPs yet" and tries again on the next dashboard load.
+- An IP shows where a network is. It does not show where the attacker is.
+
 ## 11. Threat Intelligence
 
 Open the **Threat Intelligence** page, enter an IP address or a domain, and click **Lookup**.
@@ -358,6 +387,8 @@ Sample emails are in `demo-data/`:
 
 Upload them on the **Upload Email** page to try the system.
 
+Demo emails 1 to 4 use public IP addresses in their `Received` headers, so they appear as dots on the Global Threat Map. Demo 5 is legitimate and does not appear on the map. Emails you upload before changing a demo file keep their old IPs, so delete and re-upload them to see the new locations.
+
 ## 15. Security Notes
 
 - Real `.env` files are listed in `.gitignore` and are not uploaded. Only `.env.example` files with placeholders are tracked.
@@ -378,3 +409,4 @@ Upload them on the **Upload Email** page to try the system.
 - Filtering of well-known safe domains from campaign detection
 - Mail-server and mailbox integration for real-time scanning
 - Explainability (feature importance per email)
+- Clicking a map dot to open the emails from that source

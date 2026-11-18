@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Bot, Send } from "lucide-react";
+import { Bot, FolderOpen, Mail, MessageSquareText, Send, Zap } from "lucide-react";
 import { api } from "../lib/api";
+import PageHero, { PageShell } from "../components/PageHero";
 
 const SUGGESTED = [
   "Why was this email classified as phishing?",
@@ -39,49 +40,71 @@ export default function CopilotPage() {
   }
 
   return (
-    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
-      <div className="flex items-center gap-2">
-        <Bot className="text-forensic-accent" size={22} />
-        <h1 className="text-2xl font-bold text-white">Forensic Copilot</h1>
-      </div>
-      <p className="text-sm text-slate-500">
-        Answers are grounded in real investigation data. Optionally scope the conversation to a specific email or case ID below.
-      </p>
+    <PageShell>
+      <PageHero
+        icon={<Bot size={64} strokeWidth={1.5} />}
+        title="Forensic Copilot"
+        subtitle="Answers are grounded in real investigation data. Optionally scope the conversation to a specific email or case ID below."
+      />
 
-      <div className="flex gap-3">
-        <input className="input" placeholder="Email ID (optional)" value={emailId} onChange={(e) => setEmailId(e.target.value)} />
-        <input className="input" placeholder="Case ID (optional)" value={caseId} onChange={(e) => setCaseId(e.target.value)} />
+      <div className="grid md:grid-cols-2 gap-5">
+        <div className="relative">
+          <Mail size={30} className="absolute left-5 top-1/2 -translate-y-1/2 text-cyan-300 pointer-events-none" />
+          <input className="input-xl" placeholder="Email ID (optional)" value={emailId} onChange={(e) => setEmailId(e.target.value)} />
+        </div>
+        <div className="relative">
+          <FolderOpen size={30} className="absolute left-5 top-1/2 -translate-y-1/2 text-indigo-300 pointer-events-none" />
+          <input className="input-xl" placeholder="Case ID (optional)" value={caseId} onChange={(e) => setCaseId(e.target.value)} />
+        </div>
       </div>
 
-      <div className="panel p-5 min-h-[300px] space-y-3">
-        {messages.map((m, i) => (
-          <div key={i} className={`text-sm ${m.role === "user" ? "text-slate-200" : "text-forensic-accent"}`}>
-            <span className="text-xs uppercase tracking-wide text-slate-600 mr-2">{m.role === "user" ? "You" : "Copilot"}</span>
-            {m.text}
-            {m.source === "RULE_ENGINE_ONLY" && <span className="text-[10px] text-slate-600 ml-2">(rule-engine fallback — Gemini unavailable)</span>}
-          </div>
+      <div className="flex flex-wrap gap-2">
+        {SUGGESTED.map((s) => (
+          <button key={s} disabled={busy} onClick={() => ask(s)} className="pill !py-2 !px-3 !text-[12.5px] hover:border-cyan-300 hover:shadow-glow transition disabled:opacity-60">
+            <Zap size={16} className="text-cyan-300" /> {s}
+          </button>
         ))}
-        {messages.length === 0 && (
-          <div className="flex flex-wrap gap-2">
-            {SUGGESTED.map((s) => (
-              <button key={s} className="btn-secondary text-xs" onClick={() => ask(s)}>{s}</button>
-            ))}
-          </div>
-        )}
       </div>
 
-      <div className="flex gap-2">
-        <input
-          className="input"
-          placeholder="Ask the forensic copilot…"
+      {messages.length > 0 && (
+        <div className="glow-panel p-5 space-y-3 max-h-[320px] overflow-y-auto">
+          {messages.map((m, i) => (
+            <div key={i} className={`text-[15px] ${m.role === "user" ? "text-slate-100" : "text-cyan-300"}`}>
+              <span className="text-xs uppercase tracking-wide text-slate-400 mr-2">{m.role === "user" ? "You" : "Copilot"}</span>
+              {m.text}
+              {m.source === "RULE_ENGINE_ONLY" && <span className="text-[11px] text-slate-400 ml-2">(rule-engine fallback — Gemini unavailable)</span>}
+            </div>
+          ))}
+          {busy && <div className="text-sm text-slate-400">Copilot is thinking…</div>}
+        </div>
+      )}
+
+      <div className="glow-panel relative overflow-hidden p-5 min-h-[240px]">
+        <MessageSquareText size={34} className="absolute left-6 top-6 text-sky-300" />
+        <textarea
+          className="relative w-full h-[200px] resize-none bg-transparent pl-[74px] pr-4 pt-1 text-[17px] text-slate-100 placeholder:text-slate-300/70 focus:outline-none"
+          placeholder="Ask me a question related to this investigation…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && ask(input)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              ask(input);
+            }
+          }}
         />
-        <button className="btn-primary" disabled={busy} onClick={() => ask(input)}>
-          <Send size={16} />
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          className="btn-primary !rounded-2xl !h-14 !w-[76px] shadow-glow"
+          disabled={busy || !input.trim()}
+          onClick={() => ask(input)}
+          title="Send (Enter)"
+        >
+          <Send size={26} />
         </button>
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -118,7 +118,7 @@ export default function EmailDetailPage() {
           <div className="text-4xl font-mono font-bold text-slate-100">{email.threatScore ?? "—"}<span className="text-lg text-slate-500">/100</span></div>
           <div className="text-xs text-slate-500 uppercase tracking-widest mt-1">Threat Score</div>
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col items-start gap-2">
           <ClassificationBadge classification={email.threatClassification} />
           <span className="text-xs text-slate-500">
             Source: {sourceLabel}

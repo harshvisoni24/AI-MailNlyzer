@@ -32,11 +32,11 @@ body {
   .badge {
     @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium tracking-wide;
   }
-  .badge-critical { @apply bg-red-500/15 text-red-400 border border-red-500/30; }
-  .badge-high { @apply bg-orange-500/15 text-orange-400 border border-orange-500/30; }
-  .badge-medium { @apply bg-yellow-500/15 text-yellow-400 border border-yellow-500/30; }
-  .badge-low { @apply bg-green-500/15 text-green-400 border border-green-500/30; }
-  .badge-neutral { @apply bg-slate-500/15 text-slate-400 border border-slate-500/30; }
+  .badge-critical { @apply bg-red-500/25 text-red-300 border border-red-400/60; }
+  .badge-high { @apply bg-orange-500/25 text-orange-300 border border-orange-400/60; }
+  .badge-medium { @apply bg-yellow-500/25 text-yellow-300 border border-yellow-400/55; }
+  .badge-low { @apply bg-emerald-500/25 text-emerald-300 border border-emerald-400/55; }
+  .badge-neutral { @apply bg-slate-400/20 text-slate-200 border border-slate-300/40; }
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 text-white font-semibold px-4 py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed;
     background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
@@ -48,6 +48,50 @@ body {
   }
   .input {
     @apply w-full bg-[#0a1a38]/80 border border-sky-500/25 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400/60;
+  }
+  /* ---- neon page pieces (hero, glow panels, pills) ---- */
+  .hero-icon {
+    @apply flex items-center justify-center h-[100px] w-[100px] rounded-3xl text-cyan-300;
+    background: radial-gradient(circle at 50% 40%, rgba(34, 211, 238, 0.28), rgba(8, 26, 60, 0.9) 70%);
+    border: 1px solid rgba(56, 189, 248, 0.55);
+    box-shadow: 0 0 28px -4px rgba(56, 189, 248, 0.65), inset 0 0 18px rgba(56, 189, 248, 0.25);
+  }
+  .hero-icon svg { filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.85)); }
+  .hero-icon.round { @apply rounded-full; }
+  .glow-panel {
+    @apply rounded-2xl;
+    background: linear-gradient(160deg, rgba(10, 36, 86, 0.78) 0%, rgba(5, 18, 46, 0.9) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.55);
+    box-shadow: 0 0 26px -8px rgba(56, 189, 248, 0.55), inset 0 0 22px rgba(37, 99, 235, 0.12);
+  }
+  .glow-panel.violet {
+    background: linear-gradient(160deg, rgba(40, 36, 120, 0.8) 0%, rgba(14, 20, 70, 0.92) 100%);
+    border-color: rgba(129, 140, 248, 0.6);
+    box-shadow: 0 0 26px -8px rgba(129, 140, 248, 0.6), inset 0 0 22px rgba(99, 102, 241, 0.14);
+  }
+  .icon-tile {
+    @apply flex items-center justify-center shrink-0 rounded-xl text-cyan-300;
+    background: rgba(14, 60, 140, 0.55);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    box-shadow: inset 0 0 12px rgba(56, 189, 248, 0.2);
+  }
+  .pill {
+    @apply inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] text-slate-100 whitespace-nowrap;
+    background: rgba(8, 30, 72, 0.75);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+  }
+  .input-xl {
+    @apply w-full rounded-2xl pl-[68px] pr-4 h-[68px] text-[17px] text-slate-100 placeholder:text-slate-300/70 focus:outline-none;
+    background: linear-gradient(160deg, rgba(10, 36, 86, 0.8), rgba(5, 18, 46, 0.9));
+    border: 1px solid rgba(56, 189, 248, 0.55);
+    box-shadow: 0 0 22px -8px rgba(56, 189, 248, 0.6), inset 0 0 18px rgba(37, 99, 235, 0.14);
+  }
+  .input-xl:focus { border-color: #67e8f9; box-shadow: 0 0 26px -4px rgba(103, 232, 249, 0.7); }
+  .page-waves {
+    background-image: url(/page-waves.svg);
+    background-repeat: no-repeat;
+    background-position: center bottom;
+    background-size: 100% auto;
   }
   .nav-link {
     @apply flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-400 hover:text-slate-100 hover:bg-white/5 transition;
@@ -64,7 +108,7 @@ body {
 .panel table tbody tr { transition: background 0.15s; }
 .panel table tbody tr:hover { background: rgba(56, 189, 248, 0.06); }
 select.input option { background: #081226; color: #e2e8f0; }
-.badge { @apply rounded-full px-2.5; }
+.badge { @apply rounded-full px-2.5 font-semibold; }
 .react-flow__controls-button { background: #081226; border-bottom: 1px solid #16315c; fill: #cbd5e1; }
 .react-flow__controls-button:hover { background: #0e2147; }
 .map-dark { filter: invert(1) hue-rotate(180deg) brightness(0.75) contrast(1.1) saturate(0.5); }
