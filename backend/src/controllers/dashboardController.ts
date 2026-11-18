@@ -2,6 +2,38 @@ import { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/prisma";
 import { checkDatabaseConnection } from "../config/prisma";
 import { checkAiServiceHealth } from "../services/aiServiceClient";
+import { extractIpsFromReceivedChain } from "../services/headerForensicsService";
+
+// ---- IP -> approximate location (free ip-api.com batch endpoint, cached in memory) ----
+type Geo = { lat: number; lon: number; city?: string; country?: string } | null;
+const geoCache = new Map<string, Geo>();
+
+async function lookupGeo(ips: string[]) {
+  const todo = ips.filter((ip) => !geoCache.has(ip)).slice(0, 100);
+  if (todo.length) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 4000);
+      const r = await fetch("http://ip-api.com/batch?fields=status,query,country,city,lat,lon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(todo),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      const rows = (await r.json()) as any[];
+      for (const row of rows) {
+        geoCache.set(
+          row.query,
+          row.status === "success" ? { lat: row.lat, lon: row.lon, city: row.city, country: row.country } : null
+        );
+      }
+    } catch {
+      // offline or rate-limited: leave uncached so the next dashboard load tries again
+    }
+  }
+  return geoCache;
+}
 
 export async function getDashboardSummary(req: Request, res: Response, next: NextFunction) {
   try {
@@ -49,6 +81,29 @@ export async function getDashboardSummary(req: Request, res: Response, next: Nex
     });
     const unreadAlerts = await prisma.alert.count({ where: { ownerId, isRead: false } });
 
+    // Where suspicious / malicious emails came from: first public IP in each Received chain
+    const mapEmails = await prisma.email.findMany({
+      where: { ownerId, threatClassification: { notIn: ["LEGITIMATE", "LOW_RISK"] } },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      select: { threatScore: true, receivedChain: true },
+    });
+    const byIp = new Map<string, { ip: string; emails: number; maxScore: number }>();
+    for (const e of mapEmails) {
+      const chain = Array.isArray(e.receivedChain) ? (e.receivedChain as unknown[]).map(String) : [];
+      const ip = extractIpsFromReceivedChain(chain)[0];
+      if (!ip) continue;
+      const cur = byIp.get(ip) ?? { ip, emails: 0, maxScore: 0 };
+      cur.emails += 1;
+      cur.maxScore = Math.max(cur.maxScore, e.threatScore ?? 0);
+      byIp.set(ip, cur);
+    }
+    const geo = await lookupGeo(Array.from(byIp.keys()));
+    const threatMap = Array.from(byIp.values()).flatMap((p) => {
+      const g = geo.get(p.ip);
+      return g ? [{ ...p, ...g }] : [];
+    });
+
     const dbOk = await checkDatabaseConnection();
     const aiOk = await checkAiServiceHealth();
 
@@ -58,8 +113,13 @@ export async function getDashboardSummary(req: Request, res: Response, next: Nex
       recentInvestigations,
       recentAlerts,
       weeklyTrend,
+      threatMap,
       unreadAlerts,
-      systemHealth: { database: dbOk, aiService: aiOk },
+      systemHealth: {
+        database: dbOk,
+        aiService: aiOk,
+        threatIntel: Boolean(process.env.VIRUSTOTAL_API_KEY || process.env.ABUSEIPDB_API_KEY),
+      },
     });
   } catch (err) {
     return next(err);

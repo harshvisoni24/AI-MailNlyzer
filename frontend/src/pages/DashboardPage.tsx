@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Mail,
@@ -31,7 +31,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { MapContainer, TileLayer } from "react-leaflet";
+import { CircleMarker, MapContainer, TileLayer, Tooltip as MapTooltip, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { api } from "../lib/api";
 import { DashboardSummary } from "../types";
@@ -82,6 +82,29 @@ function trend(series: number[]) {
   return Math.round(((cur - prev) / prev) * 100);
 }
 
+interface ThreatPoint {
+  ip: string;
+  lat: number;
+  lon: number;
+  city?: string;
+  country?: string;
+  emails: number;
+  maxScore: number;
+}
+
+function FitBounds({ pts }: { pts: ThreatPoint[] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (pts.length === 0) return;
+    map.fitBounds(pts.map((p) => [p.lat, p.lon] as [number, number]), { padding: [34, 34], maxZoom: 4 });
+  }, [pts, map]);
+  return null;
+}
+
+function pointColor(score: number) {
+  return score >= 90 ? "#ef4444" : score >= 70 ? "#f97316" : "#38bdf8";
+}
+
 function growth(series: number[]) {
   const first = series[0] ?? 0;
   const last = series[series.length - 1] ?? 0;
@@ -122,6 +145,8 @@ export default function DashboardPage() {
     return () => clearInterval(t);
   }, []);
 
+  const points = useMemo<ThreatPoint[]>(() => (data as (DashboardSummary & { threatMap?: ThreatPoint[] }) | null)?.threatMap ?? [], [data]);
+
   const firstName = (user?.fullName ?? user?.email ?? "Analyst").split(/[\s@]+/)[0];
   const stamp = `${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}, ${now.toLocaleTimeString("en-GB")}`;
 
@@ -139,14 +164,18 @@ export default function DashboardPage() {
     { name: "Clean", value: clean, color: C.clean },
   ];
 
-  const health = data
+  const intelFlag = (data?.systemHealth as { threatIntel?: boolean } | undefined)?.threatIntel;
+  const health: { name: string; ok: boolean; optional?: boolean }[] = data
     ? [
         { name: "Analysis Engine", ok: data.systemHealth.aiService },
+        ...(typeof intelFlag === "boolean" ? [{ name: "Threat Intel Feeds", ok: intelFlag, optional: true }] : []),
         { name: "Database", ok: data.systemHealth.database },
         { name: "API Services", ok: true },
       ]
     : [];
-  const healthPct = health.length ? Math.round((health.filter((h) => h.ok).length / health.length) * 100) : 0;
+  // Optional services (API keys) don't lower the overall percentage
+  const core = health.filter((h) => !h.optional);
+  const healthPct = core.length ? Math.round((core.filter((h) => h.ok).length / core.length) * 100) : 0;
   const online = !!data && data.systemHealth.database;
 
   const cards = data
@@ -170,7 +199,7 @@ export default function DashboardPage() {
       {error && <div className="panel p-4 text-sm text-red-400">{error}</div>}
 
       {/* Hero + metric cards */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1.28fr_1fr] gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.28fr)_minmax(0,1fr)] gap-4">
         <div className="panel relative overflow-hidden min-h-[190px] flex items-center pl-2 pr-6 py-4 !border-sky-400/30 shadow-[0_0_40px_-16px_rgba(56,189,248,0.7)]">
           <img
             src="/hero-map.svg"
@@ -231,8 +260,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 2 */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr_1.35fr] gap-4">
-        <div className="panel p-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)_minmax(0,1.5fr)] gap-4">
+        <div className="panel p-4">
           <div className="flex items-center justify-between mb-2">
             <h2 className="panel-title"><BarChart3 size={18} className="text-sky-400" /> Threat Analytics</h2>
             <span className="text-xs text-slate-300 border border-sky-500/30 rounded-md px-3 py-1.5 bg-[#0a1a38]/80">Last 7 Days</span>
@@ -242,7 +271,7 @@ export default function DashboardPage() {
               <span key={n} className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />{n}</span>
             ))}
           </div>
-          <div className="h-[200px]">
+          <div className="h-[150px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={weekly} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
                 <CartesianGrid stroke="rgba(120,170,255,0.08)" vertical={false} />
@@ -257,17 +286,17 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="panel p-5">
+        <div className="panel p-4 flex flex-col">
           <h2 className="panel-title mb-2"><PieIcon size={18} className="text-sky-400" /> Threat Distribution</h2>
-          <div className="flex items-center gap-4">
-            <div className="relative w-[170px] h-[170px] shrink-0">
+          <div className="flex flex-1 items-center gap-3">
+            <div className="relative w-[124px] h-[124px] shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={distTotal ? dist : [{ name: "None", value: 1, color: "#12284a" }]}
                     dataKey="value"
-                    innerRadius={52}
-                    outerRadius={80}
+                    innerRadius={38}
+                    outerRadius={58}
                     paddingAngle={distTotal ? 2 : 0}
                     stroke="none"
                     startAngle={90}
@@ -280,13 +309,13 @@ export default function DashboardPage() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <div className="text-[26px] font-bold text-white leading-none">{pct(malicious)}%</div>
+                <div className="text-[20px] font-bold text-white leading-none">{pct(malicious)}%</div>
                 <div className="text-xs text-red-400 mt-0.5">Malicious</div>
               </div>
             </div>
             <div className="space-y-4 flex-1 text-sm">
               {dist.map((d) => (
-                <div key={d.name} className="flex items-center justify-between">
+                <div key={d.name} className="flex items-center justify-between gap-3">
                   <span className="flex items-center gap-2 text-slate-200">
                     <span className="w-3.5 h-3.5 rounded-full" style={{ background: d.color, boxShadow: `0 0 8px ${d.color}` }} />
                     {d.name}
@@ -298,7 +327,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="panel p-5">
+        <div className="panel p-4">
           <div className="flex items-center justify-between mb-2">
             <h2 className="panel-title"><Zap size={18} className="text-sky-400" /> Recent Investigations</h2>
             <Link to="/investigate/emails" className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">View All <ArrowRight size={12} /></Link>
@@ -307,10 +336,10 @@ export default function DashboardPage() {
             {data && data.recentInvestigations.length === 0 && (
               <p className="text-sm text-slate-500 py-6">No emails analyzed yet. Try loading a demo investigation.</p>
             )}
-            {data?.recentInvestigations.slice(0, 4).map((e) => {
+            {data?.recentInvestigations.slice(0, 3).map((e) => {
               const l = level(e.threatScore);
               return (
-                <Link key={e.id} to={`/investigate/emails/${e.id}`} className="flex items-center gap-3 py-3 hover:bg-white/5 rounded-md px-1 -mx-1">
+                <Link key={e.id} to={`/investigate/emails/${e.id}`} className="flex items-center gap-3 py-2 hover:bg-white/5 rounded-md px-1 -mx-1">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${l.dot}`} />
                   <Mail size={20} className="text-slate-300 shrink-0" />
                   <div className="min-w-0 flex-1">
@@ -327,37 +356,69 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 3 */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_1.15fr_1.15fr] gap-4">
-        <div className="panel p-5">
-          <div className="flex items-center justify-between mb-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1.25fr)_minmax(0,0.9fr)] gap-4">
+        <div className="panel p-4 flex flex-col">
+          <div className="flex items-center justify-between mb-2">
             <h2 className="panel-title"><Globe2 size={18} className="text-sky-400" /> Global Threat Map</h2>
             <span className="text-xs text-green-400 flex items-center gap-1.5 border border-green-500/30 rounded-full px-3 py-1 bg-green-500/10">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse-dot" /> Live
             </span>
           </div>
-          <div className="flex gap-4">
-            <div className="flex-1 h-[150px] rounded-lg overflow-hidden border border-sky-500/20">
-              <MapContainer center={[22, 20]} zoom={1} minZoom={0} scrollWheelZoom={true} zoomControl={true} attributionControl={false} style={{ height: "100%", width: "100%", background: "#050c1c" }}>
-                <TileLayer className="map-dark" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              </MapContainer>
+          <div className="flex flex-1 gap-3">
+            <div className="relative flex-1 min-h-[160px] rounded-lg overflow-hidden border border-sky-500/25 shadow-[inset_0_0_30px_rgba(37,99,235,0.25)]">
+              <div className="absolute inset-0 [&_.leaflet-tile-pane]:[filter:sepia(1)_hue-rotate(185deg)_saturate(3)_brightness(1.5)]">
+                <MapContainer center={[22, 20]} zoom={1} minZoom={0} scrollWheelZoom={true} zoomControl={true} attributionControl={false} style={{ height: "100%", width: "100%", background: "#050c1c" }}>
+                  <TileLayer className="map-dark" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <FitBounds pts={points} />
+                  {points.map((p) => {
+                    const color = pointColor(p.maxScore);
+                    return (
+                      <span key={p.ip}>
+                        <CircleMarker center={[p.lat, p.lon]} radius={13} pathOptions={{ stroke: false, fillColor: color, fillOpacity: 0.22 }} />
+                        <CircleMarker center={[p.lat, p.lon]} radius={5.5} pathOptions={{ color: "#fff", weight: 1.2, fillColor: color, fillOpacity: 1 }}>
+                          <MapTooltip direction="top" offset={[0, -6]}>
+                            <div style={{ fontSize: 12, lineHeight: 1.35 }}>
+                              <b>{[p.city, p.country].filter(Boolean).join(", ") || "Unknown location"}</b>
+                              <br />IP: {p.ip}
+                              <br />{p.emails} email{p.emails === 1 ? "" : "s"} · top score {p.maxScore}/100
+                            </div>
+                          </MapTooltip>
+                        </CircleMarker>
+                      </span>
+                    );
+                  })}
+                </MapContainer>
+              </div>
+              {data && points.length === 0 && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-2 z-[500] text-center text-[11px] text-slate-200">
+                  <span className="rounded-full bg-[#040a18]/80 border border-sky-500/30 px-3 py-1">No locatable sender IPs yet</span>
+                </div>
+              )}
             </div>
-            <div className="w-[130px] space-y-3 text-xs">
+            {/* legend: same colours and tiers as the dots on the map */}
+            <div className="w-[128px] shrink-0 flex flex-col justify-center gap-3.5 text-xs">
               {[
-                ["Active Campaigns", data?.metrics.activeCampaigns ?? 0, "bg-red-500"],
-                ["Suspicious Emails", suspicious, "bg-sky-400"],
-                ["Evidence Items", data?.metrics.evidenceItems ?? 0, "bg-purple-500"],
-              ].map(([n, v, c]) => (
+                ["Critical Sources", points.filter((p) => p.maxScore >= 90).length, 95],
+                ["High-Risk Sources", points.filter((p) => p.maxScore >= 70 && p.maxScore < 90).length, 80],
+                ["Suspicious Sources", points.filter((p) => p.maxScore < 70).length, 50],
+              ].map(([n, v, sample]) => (
                 <div key={n as string}>
-                  <div className="flex items-center gap-2 text-slate-300"><span className={`w-2 h-2 rounded-full ${c}`} />{n}</div>
-                  <div className="text-xl font-semibold text-white ml-4">{v}</div>
+                  <div className="flex items-center gap-2 text-slate-300 whitespace-nowrap">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ background: pointColor(sample as number), boxShadow: `0 0 7px ${pointColor(sample as number)}` }}
+                    />
+                    {n}
+                  </div>
+                  <div className="text-[19px] font-semibold text-white ml-[18px] leading-tight">{v}</div>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="panel p-5">
-          <div className="flex items-center justify-between mb-2">
+        <div className="panel p-4">
+          <div className="flex items-center justify-between mb-1">
             <h2 className="panel-title"><Bell size={18} className="text-amber-400" /> Critical Alerts</h2>
             <Link to="/alerts" className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1">View All <ArrowRight size={12} /></Link>
           </div>
@@ -365,16 +426,15 @@ export default function DashboardPage() {
             {data && data.recentAlerts.length === 0 && <p className="text-sm text-slate-500 py-6">No alerts yet.</p>}
             {data?.recentAlerts.slice(0, 3).map((a) => {
               const sev = a.severity;
-              const Icon = sev === "CRITICAL" ? AlertTriangle : sev === "HIGH" || sev === "MEDIUM" ? AlertTriangle : Info;
-              const ring =
-                sev === "CRITICAL" ? "bg-red-500" : sev === "HIGH" || sev === "MEDIUM" ? "bg-amber-500" : "bg-sky-500";
+              const urgent = sev === "CRITICAL" || sev === "HIGH" || sev === "MEDIUM";
+              const ring = sev === "CRITICAL" ? "bg-red-500" : urgent ? "bg-amber-500" : "bg-sky-500";
               return (
-                <div key={a.id} className="flex items-center gap-3 py-3">
-                  <span className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${ring}`}>
-                    <Icon size={17} className="text-white" />
+                <div key={a.id} className="flex items-center gap-3 py-2.5">
+                  <span className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white text-[20px] font-bold leading-none ${ring}`}>
+                    {urgent ? "!" : "i"}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-slate-100 truncate">{a.title}</div>
+                    <div className="text-sm font-semibold text-slate-100 truncate">{a.title}</div>
                     {a.description && <div className="text-xs text-slate-400 truncate">{a.description}</div>}
                   </div>
                   <span className="text-xs text-slate-400 shrink-0">{timeAgo(a.createdAt)}</span>
@@ -384,38 +444,51 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="panel p-5">
-          <h2 className="panel-title mb-3"><Activity size={18} className="text-sky-400" /> System Health</h2>
-          <div className="flex items-center gap-5">
-            <div className="relative w-[130px] h-[130px] shrink-0">
-              <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                <circle cx="60" cy="60" r="50" fill="none" stroke="#12284a" strokeWidth="9" />
-                <circle
-                  cx="60" cy="60" r="50" fill="none" stroke="#22c55e" strokeWidth="9" strokeLinecap="round"
-                  strokeDasharray={`${(healthPct / 100) * 314} 314`}
-                  style={{ filter: "drop-shadow(0 0 6px #22c55e)" }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <Check size={22} className="text-green-400" />
-                <div className="text-2xl font-bold text-white leading-none">{healthPct}%</div>
+        <div className="panel p-4 flex flex-col">
+          <h2 className="panel-title mb-1"><Activity size={18} className="text-sky-400" /> System Health</h2>
+          <div className="flex flex-1 items-center justify-center gap-5">
+            <div className="flex flex-col items-center shrink-0">
+              <div className="relative w-[112px] h-[112px]">
+                <svg viewBox="0 0 120 120" className="w-full h-full">
+                  <defs>
+                    <linearGradient id="gauge" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0" stopColor="#22c55e" />
+                      <stop offset="1" stopColor="#4ade80" />
+                    </linearGradient>
+                  </defs>
+                  <g transform="rotate(135 60 60)" fill="none" strokeWidth="9" strokeLinecap="round">
+                    <circle cx="60" cy="60" r="48" stroke="#12284a" strokeDasharray="226.2 301.6" />
+                    <circle
+                      cx="60" cy="60" r="48" stroke="url(#gauge)"
+                      strokeDasharray={`${(healthPct / 100) * 226.2} 301.6`}
+                      style={{ filter: "drop-shadow(0 0 5px #22c55e)" }}
+                    />
+                  </g>
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pb-1">
+                  <Check size={26} strokeWidth={3} className="text-green-400" />
+                  <div className="text-[21px] font-bold text-white leading-none mt-0.5">{healthPct}%</div>
+                </div>
               </div>
-            </div>
-            <div className="flex-1">
-              <div className={`text-lg font-semibold ${healthPct === 100 ? "text-green-400" : "text-amber-400"}`}>
+              <div className={`-mt-1 text-[15px] font-semibold ${healthPct === 100 ? "text-green-400" : "text-amber-400"}`}>
                 {healthPct === 100 ? "Operational" : "Degraded"}
               </div>
-              <div className="mt-2 space-y-2">
-                {health.map((h) => (
+            </div>
+            <div className="self-stretch w-px bg-sky-500/20" />
+            <div className="space-y-2.5">
+              {health.map((h) => {
+                const dot = h.ok ? "bg-green-400" : h.optional ? "bg-amber-400" : "bg-red-500";
+                const txt = h.ok ? "text-green-400" : h.optional ? "text-amber-400" : "text-red-400";
+                return (
                   <div key={h.name} className="flex items-start gap-2 text-xs">
-                    <span className={`w-2.5 h-2.5 rounded-full mt-1 ${h.ok ? "bg-green-400" : "bg-red-500"}`} />
+                    <span className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${dot}`} style={{ boxShadow: h.ok ? "0 0 6px #4ade80" : undefined }} />
                     <div className="leading-tight">
                       <div className="text-slate-100">{h.name}</div>
-                      <div className={h.ok ? "text-green-400" : "text-red-400"}>{h.ok ? "Healthy" : "Unreachable"}</div>
+                      <div className={txt}>{h.ok ? "Healthy" : h.optional ? "Not configured" : "Unreachable"}</div>
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
         </div>

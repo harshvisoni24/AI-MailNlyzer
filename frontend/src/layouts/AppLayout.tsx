@@ -21,6 +21,9 @@ import {
   ChevronDown,
   Microscope,
   Shield,
+  Mail,
+  Lock,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../lib/api";
@@ -212,8 +215,28 @@ export default function AppLayout() {
         <Outlet />
       </main>
 
-      <footer className="shrink-0 border-t border-sky-500/20 bg-[#040d1f]/90 px-5 h-[60px] flex items-center justify-between text-[11px] text-slate-400">
-        <div className="flex items-center gap-2.5">
+      <footer className="relative shrink-0 overflow-hidden h-[60px] px-5 flex items-center justify-between text-[11.5px] text-slate-300 bg-gradient-to-r from-[#061633] via-[#040d1f] to-[#061a3d] border-t border-sky-500/20">
+        {/* glowing top edge */}
+        <div className="pointer-events-none absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-sky-400/80 to-transparent" />
+        <div className="pointer-events-none absolute -top-2 left-[8%] w-[34%] h-4 bg-sky-400/30 blur-xl" />
+        <style>{`@keyframes footer-scan{from{transform:translateX(-100%)}to{transform:translateX(420%)}}`}</style>
+        {/* scan light sweeping along the top edge */}
+        <div
+          className="pointer-events-none absolute top-0 left-0 h-[2px] w-1/5 bg-gradient-to-r from-transparent via-cyan-300 to-transparent"
+          style={{ animation: "footer-scan 6s linear infinite" }}
+        />
+        {/* circuit traces */}
+        <img
+          src="/digital_india_background.svg"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute right-0 top-0 h-full w-[380px] select-none opacity-60"
+          style={{ maskImage: "linear-gradient(to right, transparent, black 45%)", WebkitMaskImage: "linear-gradient(to right, transparent, black 45%)" }}
+        />
+        {/* soft glow at the right end */}
+        <div className="pointer-events-none absolute right-0 top-0 h-full w-[420px] bg-[radial-gradient(ellipse_at_100%_100%,rgba(37,99,235,0.28),transparent_70%)]" />
+
+        <div className="relative z-10 flex items-center gap-2.5">
           <div className="relative">
             <div className="absolute inset-0 rounded-full bg-sky-400/40 blur-md" />
             <img
@@ -229,18 +252,26 @@ export default function AppLayout() {
             <div className="text-[10px] text-slate-400">Birla Vishvakarma Mahavidyalaya</div>
           </div>
         </div>
-        <div className="hidden md:flex items-center gap-3 text-slate-300">
-          <span className="w-24 h-px bg-sky-500/30" />
-          Secure <span className="text-sky-400">•</span> Analyze <span className="text-sky-400">•</span> Investigate{" "}
-          <span className="text-sky-400">•</span> Protect
-          <span className="w-24 h-px bg-sky-500/30" />
+
+        <div className="relative z-10 hidden lg:flex items-center gap-3 text-slate-200">
+          <span className="w-32 h-px bg-gradient-to-r from-transparent to-slate-200/80" />
+          <span className="flex items-center gap-1.5"><Lock size={12} className="text-sky-400" />Secure</span><span className="text-sky-400">•</span>
+          <span className="flex items-center gap-1.5"><Search size={12} className="text-sky-400" />Analyze</span><span className="text-sky-400">•</span>
+          <span className="flex items-center gap-1.5"><Radar size={12} className="text-sky-400" />Investigate</span><span className="text-sky-400">•</span>
+          <span className="flex items-center gap-1.5"><ShieldCheck size={12} className="text-sky-400" />Protect</span>
+          <span className="w-32 h-px bg-gradient-to-l from-transparent to-slate-200/80" />
         </div>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-slate-200 font-medium">
-            <Shield size={14} className="text-sky-400" /> AI-MailNlyzer v1.0.0
+
+        <div className="relative z-10 flex items-center gap-3">
+          <span className="flex items-center gap-2 text-white font-semibold">
+            <span className="relative flex items-center justify-center">
+              <Shield size={20} className="text-sky-400 drop-shadow-[0_0_6px_rgba(56,189,248,0.8)]" strokeWidth={1.6} />
+              <Mail size={9} className="absolute text-sky-200" />
+            </span>
+            AI-MailNlyzer <span className="font-normal text-slate-400">v1.0.0</span>
           </span>
-          <span className="h-5 w-px bg-sky-500/30" />
-          <span>Powered by AI • Built for a Safer Digital India</span>
+          <span className="h-6 w-px bg-sky-500/40" />
+          <span className="hidden md:inline text-slate-300">Powered by AI • Built for a Safer Digital India</span>
         </div>
       </footer>
     </div>
