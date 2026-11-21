@@ -11,6 +11,10 @@ export interface AiAnalysisResult {
   classification: string;
   threatScore: number;
   mlPhishingProbability?: number;
+    mlTopFeatures?: {
+    raisedScore: { feature: string; impact: number }[];
+    loweredScore: { feature: string; impact: number }[];
+  } | null;
   scoreFactors: Record<string, number>;
   observedFacts: string[];
   aiInferences: { statement: string; confidence: number }[];

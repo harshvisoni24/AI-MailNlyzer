@@ -42,28 +42,28 @@ export default function EmailsListPage() {
         icon={
           <div className="relative">
             <Shield />
-            <Mail size={30} className="absolute inset-0 m-auto" />
+            <Mail size={22} className="absolute inset-0 m-auto" />
           </div>
         }
         title="Analyzed Emails"
         subtitle="Detailed analysis of processed email evidence"
         right={
-          <Link to="/investigate/upload" className="btn-primary !rounded-xl !px-6 !py-3 text-[16px]">
-            <ChartLine size={20} /> Analyze Email
+          <Link to="/investigate/upload" className="btn-primary !rounded-xl !px-5 !py-2.5 text-[13px]">
+            <ChartLine size={18} /> Analyze Email
           </Link>
         }
       />
 
       <div className="glow-panel p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
-          <span className="pill !rounded-xl !px-5 !py-2.5 text-[15px] font-semibold">
-            <Filter size={20} className="text-cyan-300" /> Total: {visible.length} Results
+          <span className="pill !rounded-xl !px-5 !py-2.5 text-sm font-semibold">
+            <Filter size={17} className="text-cyan-300" /> Total: {visible.length} Results
           </span>
           <div className="flex items-center gap-3 flex-1 justify-end">
             <div className="relative w-full max-w-[430px]">
               <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
               <input
-                className="w-full rounded-xl h-11 pl-11 pr-4 text-[14px] bg-[#071a40]/80 border border-sky-500/40 text-slate-100 placeholder:text-slate-300/70 focus:outline-none focus:border-sky-300"
+                className="w-full rounded-xl h-10 pl-10 pr-4 text-sm bg-[#071a40]/80 border border-sky-500/40 text-slate-100 placeholder:text-slate-300/70 focus:outline-none focus:border-sky-300"
                 placeholder="Search in analyzed emails…"
                 value={query}
                 onChange={(e) => { setQuery(e.target.value); setPage(1); }}
@@ -72,7 +72,7 @@ export default function EmailsListPage() {
             <button
               onClick={() => { setThreatsOnly((v) => !v); setPage(1); }}
               title={threatsOnly ? "Showing threats only — click to show all" : "Show threats only"}
-              className={`h-11 w-14 rounded-xl border flex items-center justify-center transition ${
+              className={`h-10 w-12 rounded-xl border flex items-center justify-center transition ${
                 threatsOnly ? "bg-sky-500/30 border-cyan-300 text-white shadow-glow" : "bg-[#071a40]/80 border-sky-500/40 text-cyan-200 hover:border-sky-300"
               }`}
             >
@@ -82,16 +82,16 @@ export default function EmailsListPage() {
         </div>
 
         <div className="rounded-xl border border-sky-500/25 overflow-hidden">
-          <table className="w-full text-[14px]">
-            <thead className="text-slate-200 text-[13px] font-semibold uppercase tracking-wide">
+          <table className="w-full text-sm">
+            <thead className="text-slate-400 text-xs font-medium uppercase tracking-wide">
               <tr>
-                <th className="text-left px-4 py-3.5 w-10">#</th>
-                <th className="text-left px-3 py-3.5"><span className="inline-flex items-center gap-2"><Mail size={18} className="text-sky-300" /> Subject</span></th>
-                <th className="text-left px-3 py-3.5"><span className="inline-flex items-center gap-2"><User size={18} className="text-sky-300" /> From</span></th>
-                <th className="text-left px-3 py-3.5"><span className="inline-flex items-center gap-2"><ShieldAlert size={18} className="text-sky-300" /> Classification</span></th>
-                <th className="text-left px-3 py-3.5"><span className="inline-flex items-center gap-2"><Star size={18} className="text-sky-300" /> Score</span></th>
-                <th className="text-left px-3 py-3.5"><span className="inline-flex items-center gap-2"><Calendar size={18} className="text-sky-300" /> Date</span></th>
-                <th className="text-right px-4 py-3.5">Actions</th>
+                <th className="text-left px-4 py-3 w-10">#</th>
+                <th className="text-left px-3 py-3"><span className="inline-flex items-center gap-2"><Mail size={15} className="text-sky-300" /> Subject</span></th>
+                <th className="text-left px-3 py-3"><span className="inline-flex items-center gap-2"><User size={15} className="text-sky-300" /> From</span></th>
+                <th className="text-left px-3 py-3"><span className="inline-flex items-center gap-2"><ShieldAlert size={15} className="text-sky-300" /> Classification</span></th>
+                <th className="text-left px-3 py-3"><span className="inline-flex items-center gap-2"><Star size={15} className="text-sky-300" /> Score</span></th>
+                <th className="text-left px-3 py-3"><span className="inline-flex items-center gap-2"><Calendar size={15} className="text-sky-300" /> Date</span></th>
+                <th className="text-right px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -100,16 +100,16 @@ export default function EmailsListPage() {
               )}
               {rows.map((e, i) => (
                 <tr key={e.id} className="border-t border-sky-500/15 hover:bg-sky-400/10">
-                  <td className="px-4 py-1.5 text-slate-200">{start + i + 1}</td>
-                  <td className="px-3 py-1.5 max-w-[360px]">
+                  <td className="px-4 py-3 text-slate-200">{start + i + 1}</td>
+                  <td className="px-3 py-3 max-w-[360px]">
                     <Link to={`/investigate/emails/${e.id}`} className="block truncate text-slate-100 hover:text-cyan-300" title={e.subject}>{e.subject}</Link>
                   </td>
-                  <td className="px-3 py-1.5 text-slate-200 max-w-[260px] truncate" title={e.fromAddress}>{e.fromAddress}</td>
-                  <td className="px-3 py-1.5"><ClassificationBadge classification={e.threatClassification} /></td>
-                  <td className="px-3 py-1.5"><ScoreBadge score={e.threatScore} /></td>
-                  <td className="px-3 py-1.5 text-slate-200 whitespace-nowrap">{new Date(e.createdAt).toLocaleString()}</td>
-                  <td className="px-4 py-1.5 text-right">
-                    <Link to={`/investigate/emails/${e.id}`} className="inline-flex items-center gap-2 rounded-lg border border-sky-400/50 bg-sky-500/10 px-3 py-1 text-[13px] text-white hover:bg-sky-500/25">
+                  <td className="px-3 py-3 text-slate-200 max-w-[260px] truncate" title={e.fromAddress}>{e.fromAddress}</td>
+                  <td className="px-3 py-3"><ClassificationBadge classification={e.threatClassification} /></td>
+                  <td className="px-3 py-3"><ScoreBadge score={e.threatScore} /></td>
+                  <td className="px-3 py-3 text-slate-200 whitespace-nowrap">{new Date(e.createdAt).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link to={`/investigate/emails/${e.id}`} className="inline-flex items-center gap-2 rounded-lg border border-sky-400/50 bg-sky-500/10 px-3 py-1 text-xs font-medium text-white hover:bg-sky-500/25">
                       <Eye size={16} /> View
                     </Link>
                   </td>
@@ -131,7 +131,7 @@ export default function EmailsListPage() {
                   {idx > 0 && n - arr[idx - 1] > 1 && <span className="text-slate-400">…</span>}
                   <button
                     onClick={() => setPage(n)}
-                    className={`h-10 w-10 rounded-xl border text-[15px] font-semibold ${
+                    className={`h-10 w-10 rounded-xl border text-[13.5px] font-semibold ${
                       n === cur ? "bg-blue-600 border-sky-300 text-white shadow-glow" : "bg-[#071a40]/80 border-sky-500/40 text-slate-100 hover:border-sky-300"
                     }`}
                   >
@@ -143,7 +143,7 @@ export default function EmailsListPage() {
               <ArrowRight size={18} />
             </button>
           </div>
-          <span className="text-[14px] italic text-slate-200">
+          <span className="text-xs italic text-slate-400">
             Showing {visible.length === 0 ? 0 : start + 1}–{Math.min(start + PAGE_SIZE, visible.length)} of {visible.length} results
           </span>
         </div>
@@ -154,7 +154,7 @@ export default function EmailsListPage() {
 
 function Shield() {
   return (
-    <svg width="78" height="78" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="58" height="58" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2 4 5v6c0 5 3.4 9.2 8 11 4.6-1.8 8-6 8-11V5l-8-3Z" />
     </svg>
   );

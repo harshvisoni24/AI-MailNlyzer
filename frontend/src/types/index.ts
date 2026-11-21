@@ -35,6 +35,10 @@ export interface AiExplanation {
   aiInferences: { statement: string; confidence: number }[];
   unknowns: string[];
   source: "GEMINI" | "RULE_ENGINE_ONLY";
+    mlTopFeatures?: {
+    raisedScore: { feature: string; impact: number }[];
+    loweredScore: { feature: string; impact: number }[];
+  } | null;
 }
 
 export interface EmailDetail extends EmailSummary {

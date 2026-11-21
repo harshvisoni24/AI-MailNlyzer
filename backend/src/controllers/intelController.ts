@@ -142,9 +142,7 @@ export async function lookupThreatIntel(req: Request, res: Response, next: NextF
       });
     }
 
-    // Provider adapters would be called here (not implemented without a live
-    // key in this environment). Architecture is integration-ready.
-        let result: any;
+    let result: any;
 
     if (type === "ip" && hasAbuseIpDb) {
       const r = await fetch(
@@ -197,28 +195,30 @@ export async function lookupThreatIntel(req: Request, res: Response, next: NextF
     } else {
       result = { source: "NONE", status: "UNSUPPORTED", type, value, note: "No key for this type." };
     }
+
+    // Save only NEW IPs / domains. Existing ones are left untouched (no duplicates, no overwrite).
     if (result.status === "LIVE") {
       const score = Math.min(100, Number(result.score ?? 0));
       if (type === "ip") {
-        await prisma.iP.upsert({
-          where: { address: value },
-          update: { reputationScore: score, lastEnrichedAt: new Date(), country: result.country, isp: result.isp },
-          create: { address: value, reputationScore: score, lastEnrichedAt: new Date(), country: result.country, isp: result.isp },
-        });
+        const exists = await prisma.iP.findUnique({ where: { address: value } });
+        if (!exists) {
+          await prisma.iP.create({
+            data: { address: value, reputationScore: score, lastEnrichedAt: new Date(), country: result.country, isp: result.isp },
+          });
+        }
       } else {
-        await prisma.domain.upsert({
-          where: { name: value },
-          update: { reputationScore: score, lastEnrichedAt: new Date() },
-          create: { name: value, reputationScore: score, lastEnrichedAt: new Date() },
-        });
+        const exists = await prisma.domain.findUnique({ where: { name: value } });
+        if (!exists) {
+          await prisma.domain.create({ data: { name: value, reputationScore: score, lastEnrichedAt: new Date() } });
+        }
         for (const r of result.resolvedIps ?? []) {
           if (r.country === undefined && r.isp === undefined) continue;
-          const ipScore = Math.min(100, Number(r.score ?? 0));
-          await prisma.iP.upsert({
-            where: { address: r.ip },
-            update: { reputationScore: ipScore, lastEnrichedAt: new Date(), country: r.country, isp: r.isp },
-            create: { address: r.ip, reputationScore: ipScore, lastEnrichedAt: new Date(), country: r.country, isp: r.isp },
-          });
+          const ipExists = await prisma.iP.findUnique({ where: { address: r.ip } });
+          if (!ipExists) {
+            await prisma.iP.create({
+              data: { address: r.ip, reputationScore: Math.min(100, Number(r.score ?? 0)), lastEnrichedAt: new Date(), country: r.country, isp: r.isp },
+            });
+          }
         }
       }
     }

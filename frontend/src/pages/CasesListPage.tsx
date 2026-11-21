@@ -33,36 +33,36 @@ export default function CasesListPage() {
       <PageHero
         icon={
           <div className="relative">
-            <Shield size={74} strokeWidth={1.4} />
-            <Search size={30} className="absolute inset-0 m-auto" />
+            <Shield size={56} strokeWidth={1.4} />
+            <Search size={22} className="absolute inset-0 m-auto" />
           </div>
         }
         title="Investigation Cases"
         subtitle="View and manage your investigation cases"
       />
 
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
         {cases.map((c) => {
           const st = SEV[c.severity] ?? SEV.LOW;
           return (
             <Link
               key={c.id}
               to={`/cases/${c.id}`}
-              className="glow-panel relative overflow-hidden flex gap-4 p-4 pl-5 hover:brightness-125 transition"
+              className="glow-panel relative overflow-hidden flex gap-3 p-3 pl-4 hover:brightness-125 transition"
             >
               <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${st.bar}`} />
-              <div className={`h-[84px] w-[84px] shrink-0 rounded-xl border flex items-center justify-center ${st.tile}`}>
-                <FileSearch size={44} strokeWidth={1.5} />
+              <div className={`h-[48px] w-[48px] shrink-0 rounded-xl border flex items-center justify-center ${st.tile}`}>
+                <FileSearch size={24} strokeWidth={1.5} />
               </div>
               <div className="min-w-0 flex-1 flex flex-col justify-between gap-2">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="pill !py-1 font-mono text-[13px] !bg-blue-600/25">{c.caseNumber}</span>
+                  <span className="pill !py-1 font-mono text-[11.5px] !bg-blue-600/25">{c.caseNumber}</span>
                   <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold tracking-wide ${st.pill}`}>
                     <span className={`h-2 w-2 rounded-full ${st.dot}`} /> {c.severity}
                   </span>
                 </div>
-                <h2 className="text-[17px] font-semibold text-white leading-snug truncate" title={c.title}>{c.title}</h2>
-                <div className="flex items-center justify-between gap-3 text-[13px] text-slate-300">
+                <h2 className="text-[13px] font-semibold text-slate-100 leading-snug truncate" title={c.title}>{c.title}</h2>
+                <div className="flex items-center justify-between gap-3 text-[11.5px] text-slate-300">
                   <span className="pill !py-1 !px-3 text-xs !bg-blue-600/20">
                     <ShieldCheck size={14} className="text-sky-300" /> {c.status} · {c._count?.emails ?? 0} emails · {c._count?.evidence ?? 0} evidence
                   </span>

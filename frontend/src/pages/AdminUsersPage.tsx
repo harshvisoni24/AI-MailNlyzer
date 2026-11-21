@@ -36,13 +36,13 @@ export default function AdminUsersPage() {
   return (
     <PageShell>
       <PageHero
-        icon={<Users size={60} strokeWidth={1.5} />}
+        icon={<Users size={44} strokeWidth={1.5} />}
         title="Administration Users"
         subtitle="Manage user accounts, roles and access"
       />
 
       {error && (
-        <div className="glow-panel p-5 flex items-start gap-3 text-[15px] text-amber-200 border-amber-400/60">
+        <div className="glow-panel p-5 flex items-start gap-3 text-[13.5px] text-amber-200 border-amber-400/60">
           <Lock size={22} className="mt-0.5 shrink-0" /> {error}
         </div>
       )}
@@ -52,7 +52,7 @@ export default function AdminUsersPage() {
           {users.map((u) => (
             <div key={u.id} className="p-4 flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <div className="text-[15px] font-medium text-white">{u.fullName}</div>
+                <div className="text-[13.5px] font-medium text-white">{u.fullName}</div>
                 <div className="text-xs text-slate-300 truncate">{u.email}</div>
               </div>
               <div className="flex items-center gap-3">

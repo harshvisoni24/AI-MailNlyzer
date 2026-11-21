@@ -34,12 +34,12 @@ export default function AlertsPage() {
   return (
     <PageShell>
       <PageHero
-        icon={<Bell size={56} strokeWidth={1.6} />}
+        icon={<Bell size={42} strokeWidth={1.6} />}
         title="Alerts"
         subtitle="Real-time security alerts and notifications"
         right={
-          <button className="btn-secondary !rounded-xl !px-5 !py-3 text-[15px] border-sky-400/70" onClick={markAllRead} disabled={unread === 0}>
-            <Check size={18} /> Mark All as Read
+          <button className="btn-secondary !rounded-xl !px-4 !py-2.5 text-[13px] border-sky-400/70" onClick={markAllRead} disabled={unread === 0}>
+            <Check size={16} /> Mark All as Read
           </button>
         }
       />
@@ -51,26 +51,26 @@ export default function AlertsPage() {
           return (
             <div
               key={a.id}
-              className={`glow-panel !border relative overflow-hidden flex items-center gap-5 pl-6 pr-4 py-4 ${st.glow} ${a.isRead ? "opacity-55" : ""}`}
+              className={`glow-panel !border relative overflow-hidden flex items-center gap-5 pl-5 pr-4 py-3 ${st.glow} ${a.isRead ? "[&>*]:opacity-55" : ""}`}
             >
               <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${st.bar}`} />
-              <span className={`inline-flex items-center justify-center gap-2 w-[150px] shrink-0 rounded-full border px-4 py-2 text-sm font-bold tracking-wide ${st.pill}`}>
-                <Icon size={18} /> {a.severity}
+              <span className={`inline-flex items-center justify-center gap-2 w-[124px] shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold tracking-wide ${st.pill}`}>
+                <Icon size={15} /> {a.severity}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-[17px] font-semibold text-white truncate">{a.title}</div>
-                {a.description && <div className="text-[14px] text-slate-300/90 truncate">{a.description}</div>}
+                <div className="text-[14.5px] font-semibold text-white truncate">{a.title}</div>
+                {a.description && <div className="text-[13px] text-slate-300/90 truncate">{a.description}</div>}
               </div>
-              <div className="hidden md:flex items-center gap-2 text-[14px] text-slate-300 shrink-0">
+              <div className="hidden md:flex items-center gap-2 text-[13px] text-slate-300 shrink-0">
                 <Clock size={17} className="text-slate-400" /> {new Date(a.createdAt).toLocaleString()}
               </div>
               <button
                 onClick={() => !a.isRead && markRead(a.id)}
                 disabled={a.isRead}
                 title={a.isRead ? "Already read" : "Mark as read"}
-                className="h-11 w-11 shrink-0 rounded-full flex items-center justify-center text-white bg-blue-600/40 border border-sky-400/50 hover:bg-blue-500/60 transition disabled:hover:bg-blue-600/40"
+                className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center text-white bg-blue-600/40 border border-sky-400/50 hover:bg-blue-500/60 transition disabled:hover:bg-blue-600/40"
               >
-                {a.isRead ? <Check size={20} /> : <ChevronRight size={22} />}
+                {a.isRead ? <Check size={17} /> : <ChevronRight size={19} />}
               </button>
             </div>
           );

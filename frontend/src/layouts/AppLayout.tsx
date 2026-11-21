@@ -1,3 +1,4 @@
+import ThemeToggle from "../components/ThemeToggle";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -72,14 +73,14 @@ function Dropdown({ label, icon: Icon, items }: { label: string; icon: any; item
         <ChevronDown size={13} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-2 min-w-[210px] panel p-1.5 z-50 shadow-glow">
+        <div className="dropdown-menu absolute left-0 top-full mt-2 min-w-[210px] panel p-1.5 z-50 shadow-glow">
           {items.map((i) => (
             <NavLink
               key={i.to}
               to={i.to}
               className={({ isActive }) =>
                 `flex items-center gap-2 px-3 py-2 rounded-md text-sm transition ${
-                  isActive ? "bg-sky-500/20 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  isActive ? "bg-sky-500/20 text-sky-700 dark:text-white" : "text-slate-300 hover:bg-slate-500/10 hover:text-sky-700 dark:hover:text-white"
                 }`
               }
             >
@@ -176,7 +177,7 @@ export default function AppLayout() {
 
           <div className="h-8 w-px bg-sky-500/20" />
 
-          <NavLink to="/alerts" className="relative p-2 rounded-full hover:bg-white/5">
+          <NavLink to="/alerts" className="relative p-2 rounded-full hover:bg-slate-500/10">
             <Bell size={20} className="text-sky-300" />
             {unread > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
@@ -198,11 +199,12 @@ export default function AppLayout() {
               <ChevronDown size={14} className="text-slate-400" />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-44 panel p-1.5 z-50">
-                <NavLink to="/settings" className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-white/5">
+              <div className="dropdown-menu absolute right-0 top-full mt-2 w-44 panel p-1.5 z-50">
+                <NavLink to="/settings" className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-500/10">
                   <Settings size={15} /> Settings
                 </NavLink>
-                <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-white/5">
+                <div className="px-1 pb-2"><ThemeToggle/></div>
+                <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-500/10">
                   <LogOut size={15} /> Sign out
                 </button>
               </div>
@@ -227,12 +229,12 @@ export default function AppLayout() {
         />
         {/* circuit traces */}
         <img
-          src="/digital_india_background.svg"
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none absolute right-0 top-0 h-full w-[380px] select-none opacity-60"
-          style={{ maskImage: "linear-gradient(to right, transparent, black 45%)", WebkitMaskImage: "linear-gradient(to right, transparent, black 45%)" }}
-        />
+         src="/digital_india_background.svg"
+         alt=""
+         aria-hidden
+         className="pointer-events-none absolute right-0 bottom-0 h-full w-auto max-w-[380px] object-contain object-right-bottom opacity-60"
+         style={{ maskImage: "linear-gradient(to right, transparent, #000 40%)", WebkitMaskImage: "linear-gradient(to right, transparent, #000 40%)" }}
+         />       
         {/* soft glow at the right end */}
         <div className="pointer-events-none absolute right-0 top-0 h-full w-[420px] bg-[radial-gradient(ellipse_at_100%_100%,rgba(37,99,235,0.28),transparent_70%)]" />
 

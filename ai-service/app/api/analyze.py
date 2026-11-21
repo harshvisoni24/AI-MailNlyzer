@@ -88,6 +88,7 @@ def analyze_email(request: AnalyzeRequest) -> Dict[str, Any]:
         "ruleScore": blended_result["ruleScore"],
         "mlPhishingProbability": blended_result["mlPhishingProbability"],
         "mlSource": blended_result["mlSource"],
+        "mlTopFeatures": blended_result.get("mlTopFeatures"),
         "scoreFactors": blended_result["scoreFactors"],
         "observedFacts": explanation["observedFacts"],
         "aiInferences": explanation["aiInferences"],

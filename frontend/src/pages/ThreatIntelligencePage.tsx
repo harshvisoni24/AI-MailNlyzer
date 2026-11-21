@@ -38,17 +38,21 @@ export default function ThreatIntelligencePage() {
     api.get("/threat-intelligence/ips").then((res) => setIps(res.data));
   }
 
+  // show each domain / IP only once
+  const uniqueDomains = Array.from(new Map(domains.map((d) => [String(d.name).toLowerCase(), d])).values());
+  const uniqueIps = Array.from(new Map(ips.map((x) => [x.address, x])).values());
+
   return (
-    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+    <div className="p-5 w-full space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Threat Intelligence</h1>
+        <h1 className="text-2xl font-bold text-sky-600 dark:text-cyan-400">Threat Intelligence</h1>
         {fromEmail && (
           <Link to={`/investigate/emails/${fromEmail}`} className="btn-secondary">← Back to email</Link>
         )}
       </div>
 
       <div className="panel p-5">
-        <h2 className="text-sm font-semibold text-slate-200 mb-3">Lookup IP / Domain</h2>
+        <h2 className="text-sm font-semibold text-sky-700 dark:text-cyan-300 mb-3">Lookup IP / Domain</h2>
         <div className="flex gap-2">
           <input className="input" placeholder="e.g. 203.0.113.5 or micros0ft-login.com" value={query} onChange={(e) => setQuery(e.target.value)} />
           <button className="btn-primary" onClick={() => lookup()}>Lookup</button>
@@ -118,17 +122,17 @@ export default function ThreatIntelligencePage() {
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="panel p-5">
-          <h2 className="text-sm font-semibold text-slate-200 mb-3">Known Domains ({domains.length})</h2>
+          <h2 className="text-sm font-semibold text-sky-700 dark:text-cyan-300 mb-3">Known Domains ({uniqueDomains.length})</h2>
           <ul className="space-y-1 text-xs font-mono text-slate-400">
-            {domains.map((d) => <li key={d.id}>{d.name} {d.lookalikeOf && `→ lookalike of ${d.lookalikeOf}`}</li>)}
-            {domains.length === 0 && <p className="text-slate-500 font-sans">No domains enriched yet.</p>}
+            {uniqueDomains.map((d) => <li key={d.id}>{d.name} {d.lookalikeOf && `→ lookalike of ${d.lookalikeOf}`}</li>)}
+            {uniqueDomains.length === 0 && <p className="text-slate-500 font-sans">No domains enriched yet.</p>}
           </ul>
         </div>
         <div className="panel p-5">
-          <h2 className="text-sm font-semibold text-slate-200 mb-3">Known IPs ({ips.length})</h2>
+          <h2 className="text-sm font-semibold text-sky-700 dark:text-cyan-300 mb-3">Known IPs ({uniqueIps.length})</h2>
           <ul className="space-y-1 text-xs font-mono text-slate-400">
-            {ips.map((ip) => <li key={ip.id}>{ip.address} {ip.country && `(${ip.country})`}</li>)}
-            {ips.length === 0 && <p className="text-slate-500 font-sans">No IPs enriched yet.</p>}
+            {uniqueIps.map((ip) => <li key={ip.id}>{ip.address} {ip.country && `(${ip.country})`}</li>)}
+            {uniqueIps.length === 0 && <p className="text-slate-500 font-sans">No IPs enriched yet.</p>}
           </ul>
         </div>
       </div>

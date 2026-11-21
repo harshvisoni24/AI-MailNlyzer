@@ -104,6 +104,7 @@ def blend_ml_score(rule_result: Dict[str, Any], ml_result: Optional[Dict[str, An
 
     result["threatScore"] = blended
     result["mlPhishingProbability"] = ml_score
+    result["mlTopFeatures"] = ml_result.get("mlTopFeatures")
     result["mlSource"] = ml_result["mlSource"]
 
     if result["classification"] in ("PHISHING", "SUSPICIOUS", "LOW_RISK", "LEGITIMATE", "UNKNOWN"):

@@ -30,7 +30,7 @@ export default function CaseDetailPage() {
   if (!caseData) return <div className="p-8 text-slate-500">Loading case…</div>;
 
   return (
-    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+    <div className="p-5 w-full space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <span className="font-mono text-xs text-slate-500">{caseData.caseNumber}</span>

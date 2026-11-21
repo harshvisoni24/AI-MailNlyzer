@@ -25,11 +25,11 @@ export default function EvidenceVaultPage() {
   return (
     <PageShell>
       <PageHero
-        icon={<Fingerprint size={64} strokeWidth={1.5} />}
+        icon={<Fingerprint size={46} strokeWidth={1.5} />}
         title="Evidence Vault"
         subtitle="Secure storage for all forensic evidence and artifacts"
         right={
-          <button className="btn-secondary !rounded-xl !px-5 !py-3 text-[15px] border-sky-400/70" onClick={verifyLedger}>
+          <button className="btn-secondary !rounded-xl !px-5 !py-3 text-[13.5px] border-sky-400/70" onClick={verifyLedger}>
             <ShieldCheck size={18} /> Verify Integrity Ledger
           </button>
         }
@@ -47,8 +47,8 @@ export default function EvidenceVaultPage() {
         <div className="glow-panel p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <span className="icon-tile h-11 w-11"><Database size={24} /></span>
-              <h2 className="text-[21px] font-semibold text-white">Evidence Records</h2>
+              <span className="icon-tile h-9 w-9"><Database size={20} /></span>
+              <h2 className="text-[17px] font-semibold text-white">Evidence Records</h2>
             </div>
             <span className="pill !px-4 font-semibold">
               Total: {evidence.length} <span className="h-3 w-3 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
@@ -63,12 +63,12 @@ export default function EvidenceVaultPage() {
                     selected?.id === ev.id ? "border-cyan-300/80 shadow-[0_0_16px_-4px_rgba(103,232,249,0.7)]" : "border-sky-500/30"
                   }`}
                 >
-                  <span className="icon-tile h-11 w-11"><FileText size={22} /></span>
-                  <span className="flex-1 min-w-0 truncate text-[15px] text-slate-100">
+                  <span className="icon-tile h-9 w-9"><FileText size={18} /></span>
+                  <span className="flex-1 min-w-0 truncate text-[13.5px] text-slate-100">
                     {ev.evidenceType} <span className="text-slate-400">–</span>{" "}
                     <span className="font-mono">{ev.sha256.slice(0, 20)}…</span>
                   </span>
-                  <span className="text-[13px] text-slate-300 hidden sm:block">• {ev.integrityStatus}</span>
+                  <span className="text-[12.5px] text-slate-300 hidden sm:block">• {ev.integrityStatus}</span>
                   <ChevronRight size={20} className="text-slate-300" />
                 </button>
               </li>
@@ -79,13 +79,13 @@ export default function EvidenceVaultPage() {
 
         <div className="glow-panel violet relative overflow-hidden p-5 min-h-[260px]">
           <div className="flex items-center gap-3 mb-4 relative z-10">
-            <span className="icon-tile h-11 w-11 !bg-indigo-500/30 !border-indigo-300/50 !text-indigo-100"><History size={24} /></span>
-            <h2 className="text-[21px] font-semibold text-white">Chain of Custody</h2>
+            <span className="icon-tile h-9 w-9 !bg-indigo-500/30 !border-indigo-300/50 !text-indigo-100"><History size={20} /></span>
+            <h2 className="text-[17px] font-semibold text-white">Chain of Custody</h2>
           </div>
           {!selected && (
             <>
-              <p className="text-[16px] text-slate-200 relative z-10">Select an evidence record to view its timeline.</p>
-              <img src="/vault-art.svg" alt="" aria-hidden className="absolute right-3 bottom-2 h-[230px] w-auto opacity-95 pointer-events-none" />
+              <p className="text-[14px] text-slate-200 relative z-10">Select an evidence record to view its timeline.</p>
+              <img src="/vault-art.svg" alt="" aria-hidden className="absolute right-3 bottom-2 h-[190px] w-auto opacity-95 pointer-events-none" />
             </>
           )}
           {selected && (

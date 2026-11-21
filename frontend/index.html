@@ -6,6 +6,12 @@
     <title>AI-MailNlyzer — Email Threat Detection & Forensic Intelligence</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+  try {
+    var t = localStorage.getItem("theme") || "light";
+    if (t === "dark") document.documentElement.classList.add("dark");
+  } catch (e) {}
+</script>
   </head>
   <body class="bg-forensic-bg text-slate-200">
     <div id="root"></div>

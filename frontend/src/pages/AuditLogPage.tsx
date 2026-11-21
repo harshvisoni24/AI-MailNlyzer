@@ -12,7 +12,7 @@ export default function AuditLogPage() {
   }, []);
 
   return (
-    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+    <div className="p-5 w-full space-y-6">
       <h1 className="text-2xl font-bold text-white">Audit Log</h1>
       <div className="panel overflow-hidden">
         <table className="w-full text-sm">

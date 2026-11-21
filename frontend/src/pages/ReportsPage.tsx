@@ -9,7 +9,7 @@ export default function ReportsPage() {
   }, []);
 
   return (
-    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+    <div className="p-5 w-full space-y-6">
       <h1 className="text-2xl font-bold text-white">Forensic Reports</h1>
       <div className="panel divide-y divide-forensic-border">
         {reports.map((r) => (

@@ -97,7 +97,7 @@ export default function EmailDetailPage() {
     : "Rule engine + ML model";
 
   return (
-    <div className="p-5 max-w-[1500px] mx-auto space-y-6">
+    <div className="p-5 w-full space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">{email.subject}</h1>
@@ -163,7 +163,40 @@ export default function EmailDetailPage() {
           </div>
         </div>
       )}
-
+      {/* WHAT THE ML MODEL FOCUSED ON */}
+      {explanation?.mlTopFeatures &&
+        (explanation.mlTopFeatures.raisedScore.length > 0 || explanation.mlTopFeatures.loweredScore.length > 0) && (
+        <div className="panel p-6">
+          <h2 className="text-sm font-semibold text-slate-200 mb-1">What the ML model focused on</h2>
+          <p className="text-xs text-slate-500 mb-4">
+            Words and features that moved the ML score the most. Positive values push toward phishing, negative values toward legitimate.
+          </p>
+          <div className="grid md:grid-cols-2 gap-6 text-sm">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">Raised the score</div>
+              <ul className="space-y-1 text-slate-300">
+                {explanation.mlTopFeatures.raisedScore.map((f, i) => (
+                  <li key={i} className="flex justify-between border-b border-forensic-border/50 py-0.5">
+                    <span className="font-mono">{f.feature.replace(/_/g, " ")}</span>
+                    <span className="text-red-400">+{f.impact.toFixed(2)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">Lowered the score</div>
+              <ul className="space-y-1 text-slate-300">
+                {explanation.mlTopFeatures.loweredScore.map((f, i) => (
+                  <li key={i} className="flex justify-between border-b border-forensic-border/50 py-0.5">
+                    <span className="font-mono">{f.feature.replace(/_/g, " ")}</span>
+                    <span className="text-green-400">{f.impact.toFixed(2)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ATTACK STORY */}
       {email.attackStory && (
         <div className="panel p-6">

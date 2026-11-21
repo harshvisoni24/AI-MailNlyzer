@@ -138,6 +138,7 @@ async function ingestAndAnalyze(rawSource: string, storagePath: string | null, c
         aiInferences: aiResult?.aiInferences ?? [{ statement: `AI unavailable: ${aiError}`, confidence: 0 }],
         unknowns: aiResult?.unknowns ?? ["Physical attacker location = UNKNOWN"],
         source: aiResult?.aiExplanationSource ?? "RULE_ENGINE_ONLY",
+        mlTopFeatures: aiResult?.mlTopFeatures ?? null,
       } as object,
       attackStory: aiResult?.attackStory ?? null,
     },
